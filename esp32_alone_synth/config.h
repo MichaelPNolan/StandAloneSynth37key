@@ -15,8 +15,9 @@
 //#define ESP32_AUDIO_KIT
 //#define INTERNAL_DAC 
 //defaults to some kind of external DAC probably of the PCM5102A Breakout board variety
-
+//#define extraButtons  //(additional buttons to be serviced direct to board)
 //#define MIDI_VIA_USB_ENABLED
+#define ADC_TO_MIDI_ENABLED
 /* this will force using const velocity for all notes, remove this to get dynamic velocity */
 #define MIDI_USE_CONST_VELOCITY
 

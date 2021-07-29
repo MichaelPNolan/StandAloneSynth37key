@@ -38,7 +38,7 @@ void setup()
     // setup_reverb();
     USBConnected = LOW;
     Blink_Setup();
-    setupButtons();
+    
 #ifdef ESP32_AUDIO_KIT
     ac101_setup();
     Serial.printf("Use AC101 features of A1S variant");
@@ -74,13 +74,13 @@ void setup()
 
     Serial.printf("Firmware started successfully\n");
 
-#if 1 /* activate this line to get a tone on startup to test the DAC */
+#if 0 /* activate this line to get a tone on startup to test the DAC */
     Synth_NoteOn(0, 64, 1.0f);
 #endif
 
 #if (defined ADC_TO_MIDI_ENABLED) || (defined MIDI_VIA_USB_ENABLED)
     xTaskCreatePinnedToCore(Core0Task, "Core0Task", 8000, NULL, 999, &Core0TaskHnd, 0);
-    //Serial.println("Setup Pin To Core 0 loop");
+    Serial.println("Setup Pin To Core 0 loop");
 #endif
 }
 
@@ -90,8 +90,13 @@ void Core0TaskSetup()
     /*
      * init your stuff for core0 here
      */
+     setupKeyboard();
+  
+   setupButtons();
+   Serial.println("Simple Analog");
+  
 #ifdef ADC_TO_MIDI_ENABLED
-    AdcMul_Init();
+    //AdcMul_Init();
 #endif
 }
 
@@ -100,12 +105,14 @@ void Core0TaskLoop()
     /*
      * put your loop stuff for core0 here
      */
-  #ifdef ADC_TO_MIDI_ENABLED
-    AdcMul_Process();
+  #ifdef ADC_TO_MIDI_ENABLED              
+    //AdcMul_Process();
   #endif
-   // AdcSimple();
+   AdcSimple();
+  
    //processButtons();
-    //loopkeyboard();
+   
+   serviceKeyboardMatrix();
 }
 
 void Core0Task(void *parameter)

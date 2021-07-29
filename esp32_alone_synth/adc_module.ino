@@ -15,8 +15,17 @@
  * doing math
 */
 
+#ifdef extraButtons
 #define upButton 12 // for use with a single POT to select which parameter
 #define downButton 4 // ditto
+#else
+#define upButton LED_PIN // if not in use just define something else and keep pins free
+#define downButton LED_PIN // ditto
+#endif
+
+#define adcSimplePin 34 // for testing parameters  with a single pot - 
+                        // extraButtons (above) used to change parameter type related to this pot
+
 bool upButtonState, downButtonState, lastUpButtonState, lastDownButtonState;
 unsigned long lastUBDebounceTime,lastDBDebounceTime;
 unsigned long debounceDelay = 50; 
@@ -196,13 +205,14 @@ bool  AdcSimple(){
     bool midiMsg = false;
     
     //for(int i=0; i < 100; i++) //oversample
-          pinValue += analogRead(34);
-          pinValue += analogRead(34);
-          pinValue += analogRead(34);
-          pinValue += analogRead(34);
-          pinValue += analogRead(34);
-          pinValue += analogRead(34);
-    pinValue = pinValue / 6;
+          pinValue += analogRead(adcSimplePin);
+          pinValue += analogRead(adcSimplePin);
+          pinValue += analogRead(adcSimplePin);
+          pinValue += analogRead(adcSimplePin);
+          pinValue += analogRead(adcSimplePin);
+          pinValue += analogRead(adcSimplePin);
+    pinValue = pinValue / 6; 
+    //Serial.println(pinValue);
     adcSingle = float(pinValue)/4096.0f; //(pinValue/10)*10
     delta = adcSingleAve - adcSingle; //floating point absolute get rid of signed
     error = 0.009f+(0.012f*(adcSingle+0.1));  //previous weird idea error = 0.03*((adcSingle+0.25)*0.75); 
@@ -246,9 +256,11 @@ bool  AdcSimple(){
 }
 
 void setupButtons(){
+  #ifdef extraButtons
   pinMode(upButton, INPUT_PULLUP);  //pinMode(2, INPUT_PULLUP);
   pinMode(downButton, INPUT_PULLUP);
-
+  #endif
+  //pinMode(adcSimplePin, INPUT);
 }
 
 void processButtons(){

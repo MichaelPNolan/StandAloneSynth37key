@@ -42,9 +42,8 @@ Keypad_MC17 kpd( makeKeymap(keys), rowPins, colPins, ROWS, COLS, I2CADDR );
 
 
 
-void setup() {
-  Serial.begin(115200);
-  while( !Serial ){/*wait*/}   //for USB serial switching boards
+void setupKeyboard() {
+    //for USB serial switching boards
   Wire.begin( );
   kpd.begin( );                // now does not starts wire library
   kpd.setDebounceTime(1);
@@ -57,14 +56,8 @@ String msg = "";
 
 
 
-void loop() {
+void serviceKeyboardMatrix() {
 
-  loopCount++;
-  if ( (millis()-startTime)>1000 ) {
-      Serial.println(loopCount);
-      startTime = millis();
-      loopCount = 0;
-  }
 
   // Fills kpd.key[ ] array with up-to 10 active keys.
   // Returns true if there are ANY active keys.
@@ -76,13 +69,15 @@ void loop() {
       {
         switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
             case PRESSED:
-                msg = " PRESSED.";
+                //msg = " PRESSED.";
+                Synth_NoteOn(0, kpd.key[i].kchar, 1.0f);
                 break;
             case HOLD:
                 msg = " HOLD.";
                 break;
             case RELEASED:
-                msg = " RELEASED.";
+                //msg = " RELEASED.";
+                Synth_NoteOff(0, kpd.key[i].kchar);
                 break;
             case IDLE:
                 msg = " IDLE.";
