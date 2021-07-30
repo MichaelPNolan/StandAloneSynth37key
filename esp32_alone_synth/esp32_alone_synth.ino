@@ -90,8 +90,8 @@ void Core0TaskSetup()
     /*
      * init your stuff for core0 here
      */
-     setupKeyboard();
-  
+   setupKeyboard();
+   setupADC_MINMAX();
    setupButtons();
    Serial.println("Simple Analog");
   
@@ -108,7 +108,8 @@ void Core0TaskLoop()
   #ifdef ADC_TO_MIDI_ENABLED              
     //AdcMul_Process();
   #endif
-   AdcSimple();
+   readSimplePots();
+   
   
    //processButtons();
    

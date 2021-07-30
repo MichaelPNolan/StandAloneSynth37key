@@ -23,7 +23,8 @@
 #define downButton LED_PIN // ditto
 #endif
 
-#define adcSimplePin 34 // for testing parameters  with a single pot - 
+#define NUMDIRECTPOTS   4  // 4 potentiometers wired to pings by position TL 35, TR 34, BL 39, BR 36
+uint8_t adcSimplePins[NUMDIRECTPOTS] = { ADC_DIRECT_TL, ADC_DIRECT_TR, ADC_DIRECT_BL, ADC_DIRECT_BR }; // pot pins defined in config.h by location 
                         // extraButtons (above) used to change parameter type related to this pot
 
 bool upButtonState, downButtonState, lastUpButtonState, lastDownButtonState;
@@ -35,10 +36,12 @@ struct adc_to_midi_s
     uint8_t ch;
     uint8_t cc;
 };
-int  analogueParamSet = 0;
-int  waveformParamSet = 0;
-static float adcSingle,adcSingleAve; // added by Michael for use when you don't have analogue multiplexer
-extern float adcSetpoint=0;
+extern int  analogueParamSet = 0;
+extern int  waveformParamSet = 0;
+const int maxParameterVal = 13; //the highest numbered synthparameter to avoid sending unhandled parameter
+unsigned int adcSingleMin[NUMDIRECTPOTS],adcSingleMax[NUMDIRECTPOTS];
+float adcSingle[NUMDIRECTPOTS],adcSingleAve[NUMDIRECTPOTS]; // single pins of ESP32 dedicated to pots ...
+float adcSetpoint[NUMDIRECTPOTS];
 extern struct adc_to_midi_s adcToMidiLookUp[]; /* definition in z_config.ino */
 
 uint8_t lastSendVal[ADC_TO_MIDI_LOOKUP_SIZE];  /* define ADC_TO_MIDI_LOOKUP_SIZE in top level file */
@@ -50,7 +53,7 @@ uint8_t lastSendVal[ADC_TO_MIDI_LOOKUP_SIZE];  /* define ADC_TO_MIDI_LOOKUP_SIZE
 //#define ADC_DYNAMIC_RANGE
 //#define ADC_DEBUG_CHANNEL0_DATA
 
-static float adcChannelValue[ADC_INPUTS];
+static float adcChannelValue[NUMDIRECTPOTS];
 
 
 void AdcMul_Init(void)
@@ -62,8 +65,8 @@ void AdcMul_Init(void)
 
     memset(lastSendVal, 0xFF, sizeof(lastSendVal));
 
-    analogReadResolution(10);
-    analogSetAttenuation(ADC_11db);
+    //analogReadResolution(10);
+    //analogSetAttenuation(ADC_11db);
 
     analogSetCycles(1);
     analogSetClockDiv(1);
@@ -197,44 +200,42 @@ float *AdcMul_GetValues(void)
 {
     return adcChannelValue;
 }
+void readSimplePots(){
+  for(int i=0; i<NUMDIRECTPOTS; i++)
+    adcSimple(i);
 
+}
 
-bool  AdcSimple(){
-    unsigned long int pinValue = 0;
+void  adcSimple(uint8_t potNum){
+    unsigned int pinValue = 0;  //long int?  adcSingleMin, adcSingleMax to be same type
     float delta, error;
     bool midiMsg = false;
+    const int oversample = 20;
     
-    //for(int i=0; i < 100; i++) //oversample
-          pinValue += analogRead(adcSimplePin);
-          pinValue += analogRead(adcSimplePin);
-          pinValue += analogRead(adcSimplePin);
-          pinValue += analogRead(adcSimplePin);
-          pinValue += analogRead(adcSimplePin);
-          pinValue += analogRead(adcSimplePin);
-    pinValue = pinValue / 6; 
+    //read the pin multiple times
+    for(int i=0;i<oversample;i++)      pinValue += analogRead(adcSimplePins[potNum]);         
+      pinValue = 4096-(pinValue / oversample);  //wiring bug value inverted 
+    if(adcSingleMin[potNum] > pinValue) adcSingleMin[potNum] = (pinValue+adcSingleMin[potNum])/2;
+    if(adcSingleMax[potNum] < pinValue) adcSingleMax[potNum] = pinValue;
     //Serial.println(pinValue);
-    adcSingle = float(pinValue)/4096.0f; //(pinValue/10)*10
-    delta = adcSingleAve - adcSingle; //floating point absolute get rid of signed
-    error = 0.009f+(0.012f*(adcSingle+0.1));  //previous weird idea error = 0.03*((adcSingle+0.25)*0.75); 
+    adcSingle[potNum] = float(pinValue)/4096.0f; //(pinValue/10)*10
+    delta = adcSingleAve[potNum] - adcSingle[potNum]; //floating point absolute get rid of signed
+    error = 0.009f+(0.012f*(adcSingle[potNum]+0.1));  //previous weird idea error = 0.03*((adcSingle+0.25)*0.75); 
     
     
     if (fabs(delta) > error ){
-       if(adcSetpoint != adcSingleAve) 
+       if(adcSetpoint[potNum] != adcSingleAve[potNum]) 
         {
-          adcSetpoint = adcSingleAve;
-          Serial.println("ADC read: " + String(adcSetpoint));
-          adcChannelValue[analogueParamSet] = adcSetpoint;
-          Synth_SetParam(analogueParamSet, adcChannelValue[analogueParamSet]*1.2);
+          adcSetpoint[potNum] = adcSingleAve[potNum];
+          Serial.println("---ADC read: " + String(adcSetpoint[potNum])+"--min: "+String(adcSingleMin[potNum])+"--max: "+String(adcSingleMax[potNum]));
+          adcChannelValue[potNum] = adcSetpoint[potNum];
+          Synth_SetParam(analogueParamSet+potNum, adcChannelValue[potNum]*1.1);
           midiMsg = true;
-          return 1;
+          
         } 
-      
-      
-    } else {
-      
-      return 0;
+    
     }
-    adcSingleAve = (adcSingleAve+adcSingle)/2;
+    adcSingleAve[potNum] = (adcSingleAve[potNum]+adcSingle[potNum])/2;
 /*
     if (midiMsg)
     {
@@ -261,6 +262,13 @@ void setupButtons(){
   pinMode(downButton, INPUT_PULLUP);
   #endif
   //pinMode(adcSimplePin, INPUT);
+}
+
+void setupADC_MINMAX(){
+  for(int i=0; i<NUMDIRECTPOTS; i++){
+    adcSingleMin[i] = 2000;
+    adcSingleMax[i] = 3000;
+  }
 }
 
 void processButtons(){

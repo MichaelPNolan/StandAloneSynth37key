@@ -48,6 +48,7 @@ void setupKeyboard() {
   kpd.begin( );                // now does not starts wire library
   kpd.setDebounceTime(1);
   //scan();
+  //Serial.println("myLIST_MAX ="+String(myLIST_MAX));
 }
 
 unsigned long loopCount = 0;
@@ -58,7 +59,7 @@ String msg = "";
 
 void serviceKeyboardMatrix() {
 
-
+  //const int myLIST_MAX = LIST_MAX - 2; //42
   // Fills kpd.key[ ] array with up-to 10 active keys.
   // Returns true if there are ANY active keys.
   if (kpd.getKeys())
@@ -70,7 +71,7 @@ void serviceKeyboardMatrix() {
         switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
             case PRESSED:
                 //msg = " PRESSED.";
-                Synth_NoteOn(0, kpd.key[i].kchar, 1.0f);
+                Synth_NoteOn(0, kpd.key[i].kchar, 1.0f); //unchecked if type works as a note
                 break;
             case HOLD:
                 msg = " HOLD.";
@@ -82,7 +83,7 @@ void serviceKeyboardMatrix() {
             case IDLE:
                 msg = " IDLE.";
         }
-        Serial.print("Key ");
+        Serial.print("Key :/"); //+String(myLIST_MAX));
         Serial.print(uint8_t(kpd.key[i].kchar));
         Serial.println(msg);
       }
