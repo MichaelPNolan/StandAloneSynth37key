@@ -15,8 +15,8 @@
 
 /* this is used to add a task to core 0 */
 TaskHandle_t  Core0TaskHnd ;
-boolean USBConnected;
-
+boolean       USBConnected;
+uint16_t      task0cycles;
 
 void setup()
 {
@@ -37,7 +37,7 @@ void setup()
 
     // setup_reverb();
     USBConnected = LOW;
-    Blink_Setup();
+    //Blink_Setup();
     
 #ifdef ESP32_AUDIO_KIT
     ac101_setup();
@@ -74,8 +74,9 @@ void setup()
 
     Serial.printf("Firmware started successfully\n");
 
+
 #if 0 /* activate this line to get a tone on startup to test the DAC */
-    Synth_NoteOn(0, 64, 1.0f);
+    //Synth_NoteOn(0, 64, 1.0f);
 #endif
 
 #if (defined ADC_TO_MIDI_ENABLED) || (defined MIDI_VIA_USB_ENABLED)
@@ -90,10 +91,17 @@ void Core0TaskSetup()
     /*
      * init your stuff for core0 here
      */
+   #ifdef DISPLAY_1306
+   setup1306(); //display first before buttons and pots because they call to write to screen
+   #endif
    setupKeyboard();
-   setupADC_MINMAX();
+   //setupADC_MINMAX();
    setupButtons();
    Serial.println("Simple Analog");
+   
+   
+
+   task0cycles = 0;
   
 #ifdef ADC_TO_MIDI_ENABLED
     //AdcMul_Init();
@@ -109,9 +117,11 @@ void Core0TaskLoop()
     //AdcMul_Process();
   #endif
    readSimplePots();
-   
+   #ifdef DISPLAY_1306
+    displayRefresh();
+   #endif
   
-   //processButtons();
+   processButtons();
    
    serviceKeyboardMatrix();
 }
@@ -137,7 +147,7 @@ void Core0Task(void *parameter)
  */
 inline void Loop_1Hz(void)
 {
-   Blink_Process();
+   //Blink_Process();
    
 }
 
@@ -203,6 +213,9 @@ void loop()
     {
         #ifdef MIDI_VIA_USB_ENABLED
        UsbMidi_Loop();
+       #endif
+       #ifdef DISPLAY_1306
+         //testanimate(logo_bmp, LOGO_WIDTH, LOGO_HEIGHT);
        #endif
     } 
 }

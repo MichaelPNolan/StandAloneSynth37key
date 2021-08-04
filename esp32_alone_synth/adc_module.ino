@@ -16,18 +16,41 @@
 */
 
 #ifdef extraButtons
-#define upButton 12 // for use with a single POT to select which parameter
+#define bankButton 13 // for use with a single POT to select which parameter
 #define downButton 4 // ditto
 #else
-#define upButton LED_PIN // if not in use just define something else and keep pins free
+#define bankButton LED_PIN // if not in use just define something else and keep pins free
 #define downButton LED_PIN // ditto
 #endif
 
-#define NUMDIRECTPOTS   4  // 4 potentiometers wired to pings by position TL 35, TR 34, BL 39, BR 36
-uint8_t adcSimplePins[NUMDIRECTPOTS] = { ADC_DIRECT_TL, ADC_DIRECT_TR, ADC_DIRECT_BL, ADC_DIRECT_BR }; // pot pins defined in config.h by location 
+#define NUMDIRECTPOTS   5  // 4 potentiometers wired to pings by position TL 35, TR 34, BL 39, BR 36
+uint8_t adcSimplePins[NUMDIRECTPOTS] = { ADC_DIRECT_TL, ADC_DIRECT_TR, ADC_DIRECT_BL, ADC_DIRECT_BR, 15};// pot pins defined in config.h by location 
                         // extraButtons (above) used to change parameter type related to this pot
+/*                        
+uint8_t potBank[2][[NUMDIRECTPOTS] = { {SYNTH_PARAM_VEL_ENV_ATTACK,SYNTH_PARAM_VEL_ENV_DECAY,
+                                        SYNTH_PARAM_VEL_ENV_SUSTAIN,SYNTH_PARAM_VEL_ENV_RELEASE,SYNTH_PARAM_WAVEFORM_1},
+                                        {SYNTH_PARAM_FIL_ENV_ATTACK,SYNTH_PARAM_FIL_ENV_DECAY,
+                                         SYNTH_PARAM_FIL_ENV_SUSTAIN,SYNTH_PARAM_FIL_ENV_RELEASE, SYNTH_PARAM_WAVEFORM_2 } };  
+                                         */
+/* --- from easySynth module code definitions
+SYNTH_PARAM_VEL_ENV_ATTACK  0         SYNTH_PARAM_MAIN_FILT_CUTOFF  10
+SYNTH_PARAM_VEL_ENV_DECAY 1           SYNTH_PARAM_MAIN_FILT_RESO    11
+SYNTH_PARAM_VEL_ENV_SUSTAIN 2         SYNTH_PARAM_VOICE_FILT_RESO   12
+SYNTH_PARAM_VEL_ENV_RELEASE 3         SYNTH_PARAM_VOICE_NOISE_LEVEL 13
+SYNTH_PARAM_FIL_ENV_ATTACK  4
+SYNTH_PARAM_FIL_ENV_DECAY 5
+SYNTH_PARAM_FIL_ENV_SUSTAIN 6
+SYNTH_PARAM_FIL_ENV_RELEASE 7
+#ifdef USE_UNISON
+#define SYNTH_PARAM_DETUNE_1    8
+#define SYNTH_PARAM_UNISON_2    9
+#else
+#define SYNTH_PARAM_WAVEFORM_1    8
+#define SYNTH_PARAM_WAVEFORM_2    9
+#endif
 
-bool upButtonState, downButtonState, lastUpButtonState, lastDownButtonState;
+*/
+bool bankButtonState, downButtonState, lastBankButtonState, lastDownButtonState;
 unsigned long lastUBDebounceTime,lastDBDebounceTime;
 unsigned long debounceDelay = 50; 
 
@@ -206,6 +229,18 @@ void readSimplePots(){
 
 }
 
+void screenLabelPotBank(uint8_t bank){
+  switch(bank){
+    case 0:
+       miniScreenString(0,"Attack",HIGH);
+       miniScreenString(1,"Decay",HIGH);
+       miniScreenString(2,"Sustain",HIGH);
+       miniScreenString(3,"Release",HIGH);
+       miniScreenString(5,"Waveform >",HIGH);
+       break;
+  }
+}
+
 void  adcSimple(uint8_t potNum){
     unsigned int pinValue = 0;  //long int?  adcSingleMin, adcSingleMax to be same type
     float delta, error;
@@ -214,7 +249,7 @@ void  adcSimple(uint8_t potNum){
     
     //read the pin multiple times
     for(int i=0;i<oversample;i++)      pinValue += analogRead(adcSimplePins[potNum]);         
-      pinValue = 4096-(pinValue / oversample);  //wiring bug value inverted 
+      pinValue = pinValue / oversample;  //if wiring bug value inverted 4096-(pinValue / oversample); 
     if(adcSingleMin[potNum] > pinValue) adcSingleMin[potNum] = (pinValue+adcSingleMin[potNum])/2;
     if(adcSingleMax[potNum] < pinValue) adcSingleMax[potNum] = pinValue;
     //Serial.println(pinValue);
@@ -228,6 +263,7 @@ void  adcSimple(uint8_t potNum){
         {
           adcSetpoint[potNum] = adcSingleAve[potNum];
           Serial.println("---ADC read: " + String(adcSetpoint[potNum])+"--min: "+String(adcSingleMin[potNum])+"--max: "+String(adcSingleMax[potNum]));
+          Serial.print(" Param: "+String(potNum));
           adcChannelValue[potNum] = adcSetpoint[potNum];
           Synth_SetParam(analogueParamSet+potNum, adcChannelValue[potNum]*1.1);
           midiMsg = true;
@@ -258,30 +294,37 @@ void  adcSimple(uint8_t potNum){
 
 void setupButtons(){
   #ifdef extraButtons
-  pinMode(upButton, INPUT_PULLUP);  //pinMode(2, INPUT_PULLUP);
+  pinMode(bankButton, INPUT_PULLUP);  //pinMode(2, INPUT_PULLUP);
   pinMode(downButton, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);  //use for mode toggle for pot params
+
+  miniScreenString(0,"Button_in"+String(bankButton),HIGH);
   #endif
   //pinMode(adcSimplePin, INPUT);
+  screenLabelPotBank(0);
 }
 
 void setupADC_MINMAX(){
   for(int i=0; i<NUMDIRECTPOTS; i++){
-    adcSingleMin[i] = 2000;
-    adcSingleMax[i] = 3000;
+    adcSingleMin[i] = 0000;
+    adcSingleMax[i] = 4095;
   }
 }
 
+void toggleBankButton(){
+ 
+}
 void processButtons(){
 
   // read the state of the switch into a local variable:
-  int readUpButton = digitalRead(upButton);
+  int readBankButton = digitalRead(bankButton);
   int readDownButton = digitalRead(downButton);
   // check to see if you just pressed the button
   // (i.e. the input went from LOW to HIGH), and you've waited long enough
   // since the last press to ignore any noise:
 
   // If the switch changed, due to noise or pressing:
-  if (readUpButton != lastUpButtonState) {
+  if (readBankButton != lastBankButtonState) {
     // reset the debouncing timer
     lastUBDebounceTime = millis();
   }
@@ -293,24 +336,25 @@ void processButtons(){
   if ((millis() - lastUBDebounceTime) > debounceDelay) {
 
     // if the button state has changed:
-    if (readUpButton != upButtonState) {
-      upButtonState = readUpButton;
+    if (readBankButton != bankButtonState) {
+      bankButtonState = readBankButton;
 
       // only toggle the LED if the new button state is HIGH
-      if (upButtonState == LOW) {
+      if (bankButtonState == LOW) {
          waveformParamSet = waveformParamSet + 1; //analogueParamSet++;
          if (waveformParamSet > 7) waveformParamSet=0; //analogueParamSet=0;
          
          Synth_SetParam(8, float(waveformParamSet/7.0f));  //SYNTH_PARAM_WAVEFORM_1 = 8 unless unison mode in the its detune
          //Synth_SetParam(9, float(waveformParamSet/7.0f));
-         Serial.println("WaveformSet: "+ String(waveformParamSet));
+         //Serial.println("WaveformSet: "+ String(waveformParamSet));
+         miniScreenString(4,"WF:"+ String(waveformParamSet),HIGH);
       }
     }
   }
   if ((millis() - lastDBDebounceTime) > debounceDelay) {
 
     // if the button state has changed:
-    if (readDownButton != downButtonState) {
+    if (0){//(readDownButton != downButtonState) {
       downButtonState = readDownButton;
 
       // only toggle the LED if the new button state is HIGH
@@ -324,7 +368,7 @@ void processButtons(){
     }
   }
     // save the reading. Next time through the loop, it'll be the lastButtonState:
-  lastUpButtonState = readUpButton;
+  lastBankButtonState = readBankButton;
   lastDownButtonState = readDownButton;
 
 }

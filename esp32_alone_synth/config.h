@@ -15,8 +15,9 @@
 //#define ESP32_AUDIO_KIT
 //#define INTERNAL_DAC 
 //defaults to some kind of external DAC probably of the PCM5102A Breakout board variety
-//#define extraButtons  //(additional buttons to be serviced direct to board)
+#define extraButtons  //(additional buttons to be serviced direct to board)
 //#define MIDI_VIA_USB_ENABLED
+#define DISPLAY_1306
 
 /* this will force using const velocity for all notes, remove this to get dynamic velocity */
 #define MIDI_USE_CONST_VELOCITY
@@ -24,7 +25,6 @@
 #ifdef ESP32_AUDIO_KIT
 
 /* on board led */
-#define LED_PIN     17 // D14 on dev board
 
 #define ADC_INPUTS  8
 #define ADC_MUL_S0_PIN  23
@@ -36,7 +36,7 @@
 #else /* ESP32_AUDIO_KIT */
 
 /* on board led */
-#define LED_PIN     14
+#define LED_PIN     12
 
 /*
  * Define and connect your PINS to DAC here
@@ -54,16 +54,16 @@
  * pins to connect a real DAC like PCM5201
  */
 
-#define I2S_BCLK_PIN    25
-#define I2S_WCLK_PIN    27
-#define I2S_DOUT_PIN    26
+#define I2S_BCLK_PIN    25    //purple  bck
+#define I2S_WCLK_PIN    27    //purple0    lck
+#define I2S_DOUT_PIN    26    //green   din                                    
 
 
 #endif
 // Michael's added simple ADC related parts 
-#define  ADC_DIRECT_TL   35 // top left pot directly wired to ESP32 analogue GPIO 35, 34, 39, 36 
+#define  ADC_DIRECT_TL   39 *// top left pot directly wired to ESP32 analogue GPIO 35, 34, 39, 36 
 #define  ADC_DIRECT_TR   34 //top right
-#define  ADC_DIRECT_BL   39 //bottom left
+#define  ADC_DIRECT_BL   35 //bottom left
 #define  ADC_DIRECT_BR   36 //bottom right
 
 //This code is half relevant but initializing the ADC calls in here is 

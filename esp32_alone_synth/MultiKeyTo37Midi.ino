@@ -30,7 +30,7 @@ uint8_t keys[ROWS][COLS] = {
   {34,35,36,37,38,39,40},
   {41,42,43,44,45,46,47},  //this row was buggy on hardware side perhaps - red row wire seems to be an issue. Intermittent correct/incorrect resolution 
   {48,49,50,51,52,53,54},
-  {55,56,57,58,59,60,61}  //42 combinations - 56 was the highest to get triggered
+  {55,56,0,0,0,0,0}  //42 combinations - 56 was the highest to get triggered
 };
 
 byte rowPins[ROWS] = { 6, 5, 4, 3, 2, 1 };
@@ -54,43 +54,52 @@ void setupKeyboard() {
 unsigned long loopCount = 0;
 unsigned long startTime = millis();
 String msg = "";
-
+uint8_t  keyMod = 20;
 
 
 void serviceKeyboardMatrix() {
-
+   uint8_t  keyUS;
   //const int myLIST_MAX = LIST_MAX - 2; //42
   // Fills kpd.key[ ] array with up-to 10 active keys.
   // Returns true if there are ANY active keys.
   if (kpd.getKeys())
   {
-    for (int i=0; i<LIST_MAX; i++)   // Scan the whole key list.
+    for (int i=0; i<LIST_MAX; i++)   // Scan the whole key list.  LIST_MAX
     {
       if ( kpd.key[i].stateChanged )   // Only find keys that have changed state.
       {
-        switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
-            case PRESSED:
-                //msg = " PRESSED.";
-                Synth_NoteOn(0, kpd.key[i].kchar, 1.0f); //unchecked if type works as a note
-                break;
-            case HOLD:
-                msg = " HOLD.";
-                break;
-            case RELEASED:
-                //msg = " RELEASED.";
-                Synth_NoteOff(0, kpd.key[i].kchar);
-                break;
-            case IDLE:
-                msg = " IDLE.";
+        keyUS  = uint8_t(kpd.key[i].kchar);
+        if (keyUS > 0){
+           keyUS += keyMod;
+          switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
+              case PRESSED:
+                  //msg = " PRESSED.";
+                  Synth_NoteOn(0, keyUS, 1.0f); //unchecked if type works as a note
+                  break;
+              case HOLD:
+                  msg = " HOLD.";
+                  break;
+              case RELEASED:
+                  //msg = " RELEASED.";
+                  Synth_NoteOff(0, keyUS);
+                  break;
+              case IDLE:
+                  msg = " IDLE.";
+          }
         }
-        Serial.print("Key :/"); //+String(myLIST_MAX));
+        #ifdef DISPLAY_1306
+        miniScreenString(6,"N#:"+String(keyUS),HIGH);
+        
+        #endif
+        Serial.print("Key :/");//+String(LIST_MAX));
         Serial.print(uint8_t(kpd.key[i].kchar));
         Serial.println(msg);
+        
       }
     }
   }
 }  // End loop
-/*
+
 void scan() {
   byte error, address;
   int nDevices;
@@ -122,4 +131,4 @@ void scan() {
     Serial.println("done\n");
   }
   delay(5000);          
-}*/
+}
