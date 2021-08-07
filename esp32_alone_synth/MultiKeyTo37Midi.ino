@@ -47,7 +47,7 @@ void setupKeyboard() {
   Wire.begin( );
   kpd.begin( );                // now does not starts wire library
   kpd.setDebounceTime(1);
-  //scan();
+  scan();
   //Serial.println("myLIST_MAX ="+String(myLIST_MAX));
 }
 
@@ -88,7 +88,7 @@ void serviceKeyboardMatrix() {
           }
         }
         #ifdef DISPLAY_1306
-        miniScreenString(6,"N#:"+String(keyUS),HIGH);
+        miniScreenString(6,1,"N#:"+String(keyUS),HIGH);
         
         #endif
         Serial.print("Key :/");//+String(LIST_MAX));

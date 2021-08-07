@@ -209,7 +209,7 @@ void UsbMidi_HandleShortMsg(uint8_t *data)
 {
             //you can call the display miniScreenString(int sector, String s,bool refresh)
     #ifdef DISPLAY_1306
-    miniScreenString(0,"N#:"+String(data[1]),HIGH);
+    miniScreenString(0,1,"N#:"+String(data[1]),HIGH);
     #else
     Serial.printf("shortUSB: %02x %02x %02x\n", data[0], data[1], data[2]);
     #endif

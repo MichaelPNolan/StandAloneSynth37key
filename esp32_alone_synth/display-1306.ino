@@ -57,6 +57,7 @@ static const unsigned char PROGMEM logo_bmp[] =
 
 bool   wantsDisplayRefresh;
 String    zoneStrings[8];
+uint8_t   zoneColor[8];
 
 void setup1306() {
   bool setupDisplayOK = display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
@@ -75,7 +76,7 @@ void setup1306() {
   display.setTextSize(1);
   display.setTextColor(WHITE);
   wantsDisplayRefresh = LOW;
-  miniScreenString(7,"Love Supichaya",HIGH);
+  miniScreenString(7,1,"Love Supichaya",HIGH);
   }
   /*
   // Clear the buffer
@@ -131,10 +132,10 @@ void setup1306() {
 
 //prepares message but doesn't trigger display.display() because that messes with processing samples
 //for zones on text size one they are 8 high (32 pix screen height) right half starts at 64
-void miniScreenString(int sector, String s,bool refresh){
+void miniScreenString(uint8_t sector, uint8_t c, String s,bool refresh){
   if(refresh) display.clearDisplay();
   zoneStrings[sector] = s;
-
+  zoneColor[sector] = c;
   for(int i = 0; i<8; i++){
      if(zoneStrings[i].length() > 0)
      switch(i){
@@ -171,6 +172,10 @@ void miniScreenString(int sector, String s,bool refresh){
           
           break;  
      }
+     if(zoneColor[i])
+        display.setTextColor(WHITE,BLACK);
+     else
+        display.setTextColor(BLACK,WHITE);
      display.println(zoneStrings[i]);
   }
   wantsDisplayRefresh = HIGH;
@@ -185,6 +190,7 @@ void displayRefresh()
   
   }
 }
+
 
 
 

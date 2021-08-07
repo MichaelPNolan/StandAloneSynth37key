@@ -61,7 +61,7 @@
 
 #endif
 // Michael's added simple ADC related parts 
-#define  ADC_DIRECT_TL   39 *// top left pot directly wired to ESP32 analogue GPIO 35, 34, 39, 36 
+#define  ADC_DIRECT_TL   39 // top left pot directly wired to ESP32 analogue GPIO 35, 34, 39, 36 
 #define  ADC_DIRECT_TR   34 //top right
 #define  ADC_DIRECT_BL   35 //bottom left
 #define  ADC_DIRECT_BR   36 //bottom right
@@ -85,8 +85,8 @@
 #define SAMPLE_RATE 44100
 #define SAMPLE_SIZE_16BIT
 #else
-#define SAMPLE_RATE 16000  //even 32khz - kind of sucks and you get gliches and wrong sustained notes and fails
-#define SAMPLE_SIZE_16BIT //previous default 32bit is possible but go with 16bit
+#define SAMPLE_RATE 48000  //even 32khz - kind of sucks and you get gliches and wrong sustained notes and fails
+#define SAMPLE_SIZE_32BIT //previous default 32bit is possible but go with 16bit
 //#define SAMPLE_SIZE_8BIT  //default experimental
 #endif
 
