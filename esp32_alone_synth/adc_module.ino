@@ -123,7 +123,7 @@ void screenLabelPotBank(){
        miniScreenString(5,color,"Waveform >",HIGH);
        break;
     case 1:
-       color = 0;
+       color = 1;
        miniScreenString(0,color,"F.Attack",HIGH);
        miniScreenString(1,color,"F.Decay",HIGH);
        miniScreenString(2,color,"F.Sust",HIGH);
@@ -158,12 +158,14 @@ void  adcSimple(uint8_t potNum){
           Serial.print(" Param: "+String(potNum));
           adcChannelValue[potNum] = adcSetpoint[potNum];
           Synth_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]*1.1);
+          miniScreenBarSize(potNum, adcChannelValue[potNum]);
           midiMsg = true;
           
         } 
     
     }
     adcSingleAve[potNum] = (adcSingleAve[potNum]+adcSingle[potNum])/2;
+    
 /*
     if (midiMsg)
     {
@@ -285,10 +287,10 @@ void AdcMul_Init(void)
     //analogReadResolution(10);
     //analogSetAttenuation(ADC_11db);
 
-    analogSetCycles(1);
-    analogSetClockDiv(1);
+ //   analogSetCycles(1);
+ //   analogSetClockDiv(1);
 
-    adcAttachPin(ADC_MUL_SIG_PIN);
+ //  adcAttachPin(ADC_MUL_SIG_PIN);
 
     pinMode(ADC_MUL_S0_PIN, OUTPUT);
 #if ADC_INPUTS > 2

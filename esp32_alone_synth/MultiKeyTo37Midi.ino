@@ -47,7 +47,7 @@ void setupKeyboard() {
   Wire.begin( );
   kpd.begin( );                // now does not starts wire library
   kpd.setDebounceTime(1);
-  scan();
+  //scan();
   //Serial.println("myLIST_MAX ="+String(myLIST_MAX));
 }
 

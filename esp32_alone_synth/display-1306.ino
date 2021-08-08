@@ -55,9 +55,11 @@ static const unsigned char PROGMEM logo_bmp[] =
   0b01110000, 0b01110000,
   0b00000000, 0b00110000 };
 
-bool   wantsDisplayRefresh;
-String    zoneStrings[8];
-uint8_t   zoneColor[8];
+bool   wantsDisplayRefresh;  
+//these are all arrays of 8 for the 4 rows and 2 columns that fit with text size 1 as set in init
+String    zoneStrings[8]; //Room for 8 char (maybe more) per zone (sector)
+uint8_t   zoneColor[8]; //monochrome WHITE or BLACK
+uint8_t   zoneBarSize[8] = {24,0,0,0,0,0,0,0};  //could be a rectangle of 64 pix width 8 pix height
 
 void setup1306() {
   bool setupDisplayOK = display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS);
@@ -129,13 +131,16 @@ void setup1306() {
   testanimate(logo_bmp, LOGO_WIDTH, LOGO_HEIGHT); // Animate bitmaps
   */
 }
-
-//prepares message but doesn't trigger display.display() because that messes with processing samples
-//for zones on text size one they are 8 high (32 pix screen height) right half starts at 64
 void miniScreenString(uint8_t sector, uint8_t c, String s,bool refresh){
-  if(refresh) display.clearDisplay();
   zoneStrings[sector] = s;
   zoneColor[sector] = c;
+  if(refresh) miniScreenRedraw();
+}
+//prepares message but doesn't trigger display.display() because that messes with processing samples
+//for zones on text size one they are 8 high (32 pix screen height) right half starts at 64
+void miniScreenRedraw(){
+  display.clearDisplay();
+
   for(int i = 0; i<8; i++){
      if(zoneStrings[i].length() > 0)
      switch(i){
@@ -176,11 +181,38 @@ void miniScreenString(uint8_t sector, uint8_t c, String s,bool refresh){
         display.setTextColor(WHITE,BLACK);
      else
         display.setTextColor(BLACK,WHITE);
+     
+     if(zoneBarSize[i] > 0){
+        miniScreenBarDraw(i);
+     } else
      display.println(zoneStrings[i]);
   }
   wantsDisplayRefresh = HIGH;
   //  display.display(); is called by displayRefresh on core0task loop but this loading the display memory can be called any time
 }
+void miniScreenBarSize(uint8_t sector, float param){
+  
+  zoneBarSize[sector] = 64.0f * param;
+}
+
+void miniScreenBarDraw(uint8_t sector){
+   int x,y;
+   y = (sector % 4) * 8;
+   x = (sector % 2) *64;
+   display.drawRect(x,y, zoneBarSize[sector], 7, SSD1306_WHITE);
+   display.setCursor(x,y);
+    
+   display.setTextColor(BLACK,WHITE);
+   uint8_t fitInBar = zoneBarSize[sector]/7; //numb of characters to fit in bar
+   display.print(zoneStrings[sector].substring(0,fitInBar)); //reprint the text  myString.substring(from, to)
+   display.setTextColor(WHITE,BLACK);
+   display.print(zoneStrings[sector].substring(fitInBar)); 
+    
+ 
+  //  display.display(); is called by displayRefresh on core0task loop but this loading the display memory can be called any time
+}
+
+
 
 void displayRefresh()
 {
