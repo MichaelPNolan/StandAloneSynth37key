@@ -193,11 +193,12 @@ void miniScreenRedraw(){
 void miniScreenBarSize(uint8_t sector, float param){
   
   zoneBarSize[sector] = 64.0f * param;
+  miniScreenRedraw();
 }
 
 void miniScreenBarDraw(uint8_t sector){
    int x,y;
-   y = (sector % 4) * 8;
+   if(sector>0) y = (sector / 2) * 8; else y = 0;
    x = (sector % 2) *64;
    display.drawRect(x,y, zoneBarSize[sector], 7, SSD1306_WHITE);
    display.setCursor(x,y);
