@@ -30,7 +30,7 @@ uint8_t keys[ROWS][COLS] = {
   {34,35,36,37,38,39,40},
   {41,42,43,44,45,46,47},  //this row was buggy on hardware side perhaps - red row wire seems to be an issue. Intermittent correct/incorrect resolution 
   {48,49,50,51,52,53,54},
-  {55,56,0,0,0,0,0}  //42 combinations - 56 was the highest to get triggered
+  {0,0,0,0,0,0,0}  //42 combinations - 56 was the highest to get triggered
 };
 
 byte rowPins[ROWS] = { 6, 5, 4, 3, 2, 1 };
