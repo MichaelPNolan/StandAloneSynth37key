@@ -30,7 +30,7 @@ uint8_t keys[ROWS][COLS] = {
   {34,35,36,37,38,39,40},
   {41,42,43,44,45,46,47},  //this row was buggy on hardware side perhaps - red row wire seems to be an issue. Intermittent correct/incorrect resolution 
   {48,49,50,51,52,53,54},
-  {0,0,0,0,0,0,0}  //42 combinations - 56 was the highest to get triggered
+  {55,56,0,0,0,0,0}  //42 combinations - 56 was the highest to get triggered
 };
 
 byte rowPins[ROWS] = { 6, 5, 4, 3, 2, 1 };
@@ -40,7 +40,15 @@ byte colPins[COLS] = { 14, 13, 12,11,10, 9, 8 };
 // modify constructor for I2C i/o
 Keypad_MC17 kpd( makeKeymap(keys), rowPins, colPins, ROWS, COLS, I2CADDR );
 
+float volumeParam = 1.0f;
+float semiModifier = 0.5f;
 
+
+
+unsigned long loopCount = 0;
+unsigned long startTime = millis();
+String msg = "";
+uint8_t  keyMod = 40;
 
 void setupKeyboard() {
     //for USB serial switching boards
@@ -49,13 +57,19 @@ void setupKeyboard() {
   kpd.setDebounceTime(1);
   //scan();
   //Serial.println("myLIST_MAX ="+String(myLIST_MAX));
+  
 }
 
-unsigned long loopCount = 0;
-unsigned long startTime = millis();
-String msg = "";
-uint8_t  keyMod = 20;
+// to receive changes from controller adc input see adc_module
+void keyboardSetVolume(float value)
+{
+  volumeParam = value;
+}
 
+void keyboardSetSemiModifier(float value)
+{
+  semiModifier = value;
+}
 
 void serviceKeyboardMatrix() {
    uint8_t  keyUS;
@@ -70,11 +84,11 @@ void serviceKeyboardMatrix() {
       {
         keyUS  = uint8_t(kpd.key[i].kchar);
         if (keyUS > 0){
-           keyUS += keyMod;
+           keyUS += keyMod*semiModifier;
           switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
               case PRESSED:
                   //msg = " PRESSED.";
-                  Synth_NoteOn(0, keyUS, 1.0f); //unchecked if type works as a note
+                  Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
                   break;
               case HOLD:
                   msg = " HOLD.";

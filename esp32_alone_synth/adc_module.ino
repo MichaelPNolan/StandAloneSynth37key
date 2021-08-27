@@ -14,6 +14,8 @@
  * Requires Boardmanager 1.0.4 or earlier of ESP32
  * doing math
 */
+
+// from easySynth module code definitions
 #define SYNTH_PARAM_VEL_ENV_ATTACK  0
 #define SYNTH_PARAM_VEL_ENV_DECAY 1
 #define SYNTH_PARAM_VEL_ENV_SUSTAIN 2
@@ -34,6 +36,17 @@
 #define SYNTH_PARAM_VOICE_FILT_RESO   12
 #define SYNTH_PARAM_VOICE_NOISE_LEVEL 13
 
+//new customer parameters not handled by modules as forked
+#define CONTROL_PARAM_MAX_VOL  14
+//You can also call the simple_delay module 
+// eg: void Delay_SetLength(uint8_t unused, float value)
+//  in z_config midi-controller parameters the function calls are encoded as Delay_SetLength, 2   -Delay_SetLevel, 3    -Delay_SetFeedback, 4
+#define CONTROL_DELAY_SET_LENGTH 15
+#define CONTROL_DELAY_SET_LEVEL 16
+#define CONTROL_DELAY_SET_FEEDBACK 17
+#define CONTROL_SEMITONES 18
+
+
 #ifdef extraButtons
 #define bankButton 13 // for use with a single POT to select which parameter
 #define downButton 4 // ditto
@@ -43,33 +56,21 @@
 #endif
 
 #define NUMDIRECTPOTS   5  // 4 potentiometers wired to pings by position TL 35, TR 34, BL 39, BR 36
-#define NUMBANKS        2
+#define NUMBANKS        4
 uint8_t adcSimplePins[NUMDIRECTPOTS] = { ADC_DIRECT_TL, ADC_DIRECT_TR, ADC_DIRECT_BL, ADC_DIRECT_BR, 15};// pot pins defined in config.h by location 
                         // extraButtons (above) used to change parameter type related to this pot
                      
 uint8_t potBank[NUMBANKS][NUMDIRECTPOTS] = { {SYNTH_PARAM_VEL_ENV_ATTACK,SYNTH_PARAM_VEL_ENV_DECAY,
-                                        SYNTH_PARAM_VEL_ENV_SUSTAIN,SYNTH_PARAM_VEL_ENV_RELEASE,SYNTH_PARAM_WAVEFORM_1},
+                                        SYNTH_PARAM_VEL_ENV_SUSTAIN,SYNTH_PARAM_VEL_ENV_RELEASE,SYNTH_PARAM_WAVEFORM_1},  //end bank 0
                                         {SYNTH_PARAM_FIL_ENV_ATTACK,SYNTH_PARAM_FIL_ENV_DECAY,
-                                         SYNTH_PARAM_FIL_ENV_SUSTAIN,SYNTH_PARAM_FIL_ENV_RELEASE, SYNTH_PARAM_WAVEFORM_2 } };  
+                                         SYNTH_PARAM_FIL_ENV_SUSTAIN,SYNTH_PARAM_FIL_ENV_RELEASE, SYNTH_PARAM_WAVEFORM_2 }, //end bank 1
+                                         {SYNTH_PARAM_MAIN_FILT_RESO,SYNTH_PARAM_MAIN_FILT_CUTOFF,
+                                        SYNTH_PARAM_VOICE_FILT_RESO ,SYNTH_PARAM_VOICE_NOISE_LEVEL,CONTROL_PARAM_MAX_VOL}, //end bank 2
+                                        {CONTROL_DELAY_SET_LENGTH,CONTROL_DELAY_SET_LEVEL,
+                                         CONTROL_DELAY_SET_FEEDBACK,SYNTH_PARAM_MAIN_FILT_CUTOFF, CONTROL_SEMITONES }}; //end bank 3
                                          
-/* --- from easySynth module code definitions
-SYNTH_PARAM_VEL_ENV_ATTACK  0         SYNTH_PARAM_MAIN_FILT_CUTOFF  10
-SYNTH_PARAM_VEL_ENV_DECAY 1           SYNTH_PARAM_MAIN_FILT_RESO    11
-SYNTH_PARAM_VEL_ENV_SUSTAIN 2         SYNTH_PARAM_VOICE_FILT_RESO   12
-SYNTH_PARAM_VEL_ENV_RELEASE 3         SYNTH_PARAM_VOICE_NOISE_LEVEL 13
-SYNTH_PARAM_FIL_ENV_ATTACK  4
-SYNTH_PARAM_FIL_ENV_DECAY 5
-SYNTH_PARAM_FIL_ENV_SUSTAIN 6
-SYNTH_PARAM_FIL_ENV_RELEASE 7
-#ifdef USE_UNISON
-#define SYNTH_PARAM_DETUNE_1    8
-#define SYNTH_PARAM_UNISON_2    9
-#else
-#define SYNTH_PARAM_WAVEFORM_1    8
-#define SYNTH_PARAM_WAVEFORM_2    9
-#endif
 
-*/
+
 bool bankButtonState, downButtonState, lastBankButtonState, lastDownButtonState;
 uint8_t  bankValue;
 unsigned long lastUBDebounceTime,lastDBDebounceTime;
@@ -111,6 +112,8 @@ void readSimplePots(){
 }
                                                 //void setTextColor(uint16_t color);
                                                 //void setTextColor(uint16_t color, uint16_t backgroundcolor);
+
+// the text for what parameter settings are mapped to the pots and slider
 void screenLabelPotBank(){
   uint8_t color;
   switch(bankValue){
@@ -130,9 +133,27 @@ void screenLabelPotBank(){
        miniScreenString(3,color,"F.Rels",HIGH);
        miniScreenString(5,color,"Waveform2>",HIGH);
        break;
+    case 2:
+       color = 1;
+       miniScreenString(0,color,"M.Reson",HIGH);
+       miniScreenString(1,color,"M.Cutoff",HIGH);
+       miniScreenString(2,color,"Voice-Res",HIGH);
+       miniScreenString(3,color,"Noise-Lev",HIGH);
+       miniScreenString(5,color,"Max-Volume>",HIGH);
+       break;
+     case 3:
+       color = 1;
+       miniScreenString(0,color,"Delay-Len",HIGH);
+       miniScreenString(1,color,"Del-Level",HIGH);
+       miniScreenString(2,color,"D.Feedback",HIGH);
+       miniScreenString(3,color,"M.Cutoff",HIGH);
+       miniScreenString(5,color,"Semitones",HIGH);
+       break;
   }
-}
+} 
 
+//this is analog to digital conversion reading the (at the time of Aug 27) 4 pots we have being sampled and sending the 
+//paramater change adjustements according to parameter value assigned by number potBank[bankValue][potNum] defined above
 void  adcSimple(uint8_t potNum){
     unsigned int pinValue = 0;  //long int?  adcSingleMin, adcSingleMax to be same type
     float delta, error;
@@ -146,19 +167,27 @@ void  adcSimple(uint8_t potNum){
     if(adcSingleMax[potNum] < pinValue) adcSingleMax[potNum] = pinValue;
     //Serial.println(pinValue);
     adcSingle[potNum] = float(pinValue)/4096.0f; //(pinValue/10)*10
+
+    //This "noise reduction in the pot value so its not constantly changing was derived experimentally and needs more analysis
+    
     delta = adcSingleAve[potNum] - adcSingle[potNum]; //floating point absolute get rid of signed
     error = 0.009f+(0.012f*(adcSingle[potNum]+0.1));  //previous weird idea error = 0.03*((adcSingle+0.25)*0.75); 
     
-    
+    //the idea is that if the delta adjustment is larger than the error we pick up significant control reading changes
+    //instead of just sending minute voltage reading changes that could be noise and cause un-needed calls to code too often
     if (fabs(delta) > error ){
-       if(adcSetpoint[potNum] != adcSingleAve[potNum]) 
+       if(adcSetpoint[potNum] != adcSingleAve[potNum]) //was there a change - if so then do stuff
         {
           adcSetpoint[potNum] = adcSingleAve[potNum];
           Serial.println("---ADC read: " + String(adcSetpoint[potNum])+"--min: "+String(adcSingleMin[potNum])+"--max: "+String(adcSingleMax[potNum]));
           Serial.print(" Param: "+String(potNum));
           adcChannelValue[potNum] = adcSetpoint[potNum];
-          Synth_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]*1.1);
-          miniScreenBarSize(potNum, adcChannelValue[potNum]);
+          //is the parameter setting for the bank within the range of parameter numbers handled by Synth_SetParam 0-13 #defined paramaters
+          if(potBank[bankValue][potNum] < 14)
+             Synth_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]);   //see easySynth module
+          else
+             Custom_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]);
+          miniScreenBarSize(potNum, adcChannelValue[potNum]); //display a bar in the text area to show the current value
           midiMsg = true;
           
         } 
@@ -184,6 +213,27 @@ void  adcSimple(uint8_t potNum){
             }
         }
     } */
+}
+
+void Custom_SetParam(uint8_t slider, float value)
+{
+
+  switch(slider){
+    case CONTROL_PARAM_MAX_VOL:
+      keyboardSetVolume(value);  //see multikeyTo37Midi module where keyboard entry calls notes on/off
+      break;
+    case CONTROL_DELAY_SET_LENGTH:
+      Delay_SetLength(0, value); //see simple_delay module
+      break;
+    case CONTROL_DELAY_SET_LEVEL:
+      Delay_SetLevel(0, value);  //see simple_delay module
+      break;
+    case CONTROL_DELAY_SET_FEEDBACK:
+      Delay_SetFeedback(0, value);  //see simple_delay module
+      break;
+    case CONTROL_SEMITONES:
+      keyboardSetSemiModifier(value);
+  }
 }
 
 void setupButtons(){
@@ -220,6 +270,8 @@ void waveFormSet(float potVal){
    //Serial.println("WaveformSet: "+ String(waveformParamSet));
 }
 
+// added by Michael to this library which is really for processing knobs and buttons - this is buttons
+// Before Aug 27 2020 there was only one button for the alone synth for changing bank for the 4 pots
 void processButtons(){
 
   // read the state of the switch into a local variable:
@@ -275,6 +327,7 @@ void processButtons(){
 
 }
 
+//not used - part of the original code
 void AdcMul_Init(void)
 {
     for (int i = 0; i < ADC_INPUTS; i++)
