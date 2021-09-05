@@ -71,6 +71,7 @@ uint8_t potBank[NUMBANKS][NUMDIRECTPOTS] = { {SYNTH_PARAM_VEL_ENV_ATTACK,SYNTH_P
                                          
 
 
+
 bool bankButtonState, downButtonState, lastBankButtonState, lastDownButtonState;
 uint8_t  bankValue;
 unsigned long lastUBDebounceTime,lastDBDebounceTime;
@@ -242,7 +243,7 @@ void Custom_SetParam(uint8_t slider, float value)
 void setupButtons(){
   #ifdef extraButtons
   pinMode(bankButton, INPUT_PULLUP);  //pinMode(2, INPUT_PULLUP);
-  pinMode(downButton, INPUT_PULLUP);
+ // pinMode(downButton, INPUT_PULLUP);  //this is from the prototype simple synth - currently unused
   pinMode(LED_PIN, OUTPUT);  //use for mode toggle for pot params
 
   miniScreenString(0,1,"Button_in"+String(bankButton),HIGH);
@@ -258,13 +259,26 @@ void setupADC_MINMAX(){
     adcSingleMax[i] = 4095;
   }
 }
+void rotateBank(){
+  bankValue = (bankValue+1)% NUMBANKS;
+   
+  screenLabelPotBank();
+  miniScreenString(4,1,"Bank: "+ String(bankValue),HIGH);
+}
+
+void setBank(int bank){ //wrote this to be called from a modifier key plus keyboard keys
+  bankValue = bank;
+  screenLabelPotBank();
+  miniScreenString(4,1,"Bank: "+ String(bankValue),HIGH);
+}
 
 void toggleBankButton(){
-   bankValue = (bankValue+1)% NUMBANKS;
-   digitalWrite(LED_PIN, bankValue);
-   screenLabelPotBank();
-   miniScreenString(4,1,"Bank: "+ String(bankValue),HIGH);
+   rotateBank();
    
+}
+
+bool commandState(){
+  return bankButtonState;
 }
 
 void waveFormSet(float potVal){
@@ -279,7 +293,7 @@ void processButtons(){
 
   // read the state of the switch into a local variable:
   int readBankButton = digitalRead(bankButton);
-  int readDownButton = digitalRead(downButton);
+  //int readDownButton = digitalRead(downButton);  //unused
   // check to see if you just pressed the button
   // (i.e. the input went from LOW to HIGH), and you've waited long enough
   // since the last press to ignore any noise:
@@ -289,17 +303,19 @@ void processButtons(){
     // reset the debouncing timer
     lastUBDebounceTime = millis();
   }
+  /*
    if (readDownButton != lastDownButtonState) {
     // reset the debouncing timer
     lastDBDebounceTime = millis();
-  }
-
-  if ((millis() - lastUBDebounceTime) > debounceDelay) {
+  }*/
+  //process the bank button
+  if ((millis() - lastUBDebounceTime) > debounceDelay) {  
 
     // if the button state has changed:
     if (readBankButton != bankButtonState) {
       bankButtonState = readBankButton;
-
+      digitalWrite(LED_PIN, !bankButtonState);
+      
       // only toggle the LED if the new button state is HIGH
       if (bankButtonState == LOW) {
          toggleBankButton();
@@ -307,9 +323,9 @@ void processButtons(){
          
       }
     }
-  }
+  }/*
   if ((millis() - lastDBDebounceTime) > debounceDelay) {
-
+     
     // if the button state has changed:
     if (0){//(readDownButton != downButtonState) {
       downButtonState = readDownButton;
@@ -323,10 +339,10 @@ void processButtons(){
          Serial.println(analogueParamSet);
       }
     }
-  }
+  } */
     // save the reading. Next time through the loop, it'll be the lastButtonState:
   lastBankButtonState = readBankButton;
-  lastDownButtonState = readDownButton;
+  //lastDownButtonState = readDownButton;
 
 }
 

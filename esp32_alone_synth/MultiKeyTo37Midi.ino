@@ -21,6 +21,7 @@
 
 #define I2CADDR 0x20        // address of MCP23017 chip on I2C bus
 
+
 const byte ROWS = 6; // Four rows
 const byte COLS = 7; // Three columns
 // Define the Keymap
@@ -48,7 +49,7 @@ float semiModifier = 0.5f;
 unsigned long loopCount = 0;
 unsigned long startTime = millis();
 String msg = "";
-uint8_t  keyMod = 40;
+uint8_t  keyMod = 40; //the range of value that can be added to the input note number to determine played note
 
 void setupKeyboard() {
     //for USB serial switching boards
@@ -70,9 +71,8 @@ void keyboardSetSemiModifier(float value)
 {
   semiModifier = value;
 }
-
+// for more functionality - we have all the keyboard keys to use - so we check the modifier bank button
 void serviceKeyboardMatrix() {
-   uint8_t  keyUS;
   //const int myLIST_MAX = LIST_MAX - 2; //42
   // Fills kpd.key[ ] array with up-to 10 active keys.
   // Returns true if there are ANY active keys.
@@ -82,38 +82,77 @@ void serviceKeyboardMatrix() {
     {
       if ( kpd.key[i].stateChanged )   // Only find keys that have changed state.
       {
-        keyUS  = uint8_t(kpd.key[i].kchar);
-        if (keyUS > 0){
-           keyUS += keyMod*semiModifier;
-          switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
-              case PRESSED:
-                  //msg = " PRESSED.";
-                  Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
-                  break;
-              case HOLD:
-                  msg = " HOLD.";
-                  break;
-              case RELEASED:
-                  //msg = " RELEASED.";
-                  Synth_NoteOff(0, keyUS);
-                  break;
-              case IDLE:
-                  msg = " IDLE.";
-          }
+        if(!commandState() && kpd.key[i].kstate == RELEASED)
+          keyToCommand(uint8_t(kpd.key[i].kchar));
+        // let it also do the keyboard notes playing effect as well as triggering command in previous call/check
+        if (uint8_t(kpd.key[i].kchar) > 0){ //some possible/unused keys were mapped to 0 in the keyboard char array to prevent output
+          keyToNote(uint8_t(kpd.key[i].kchar),i);
         }
-        #ifdef DISPLAY_1306
-        miniScreenString(6,1,"N#:"+String(keyUS),HIGH);
-        
-        #endif
-        Serial.print("Key :/");//+String(LIST_MAX));
-        Serial.print(uint8_t(kpd.key[i].kchar));
-        Serial.println(msg);
-        
+
       }
     }
   }
 }  // End loop
 
+
+void keyToNote(uint8_t  keyUS, int i){
+  keyUS += keyMod*semiModifier; //semiModifier is set in ADC from one of the pots to a 1.0f value and keyMod is whatever you want as adjust range
+  switch (kpd.key[i].kstate) {  // Report active keystate based on typedef enum{ IDLE, PRESSED, HOLD, RELEASED } KeyState;
+      case PRESSED:
+          //msg = " PRESSED.";
+          Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
+          break;
+      case HOLD:
+          //msg = " HOLD.";
+          break;
+      case RELEASED:
+          //msg = " RELEASED.";
+          Synth_NoteOff(0, keyUS);
+          break;
+      case IDLE:
+          msg = " IDLE.";
+  }
+  #ifdef DISPLAY_1306
+  miniScreenString(6,1,"N#:"+String(keyUS),HIGH);
+  
+  #else
+  Serial.print("Key :/");//+String(LIST_MAX));
+  Serial.print(uint8_t(kpd.key[i].kchar));
+  Serial.println(msg);
+  #endif
+}
+
+void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button was held and a key was released
+  
+  switch (keyCom) { 
+      case 20:
+          msg = "Bank Set.0"; //use like mousebutton up ... after release trigger
+          setBank(0);
+          break;
+      case 21:
+          msg = "Bank Set.1"; //use like mousebutton up ... after release trigger
+          setBank(1);
+          break;
+      case 22:
+          msg = "Bank Set.2"; //use like mousebutton up ... after release trigger
+          setBank(2);
+          break;
+      case 23:
+          msg = "Bank Set.3"; //use like mousebutton up ... after release trigger
+          setBank(3);
+          break;
+
+
+  }
+  #ifdef DISPLAY_1306
+  miniScreenString(6,1,"COM:"+String(keyCom),HIGH);
+  
+  #else
+  Serial.print("Command :/");//
+  Serial.print(uint8_t(kpd.key[i].kchar));
+  Serial.println(msg);
+  #endif
+}
 void scan() {
   byte error, address;
   int nDevices;
