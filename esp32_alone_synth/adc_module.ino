@@ -187,7 +187,10 @@ void  adcSimple(uint8_t potNum){
              Synth_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]);   //see easySynth module
           else
              Custom_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]);
-          miniScreenBarSize(potNum, adcChannelValue[potNum]); //display a bar in the text area to show the current value
+          if(potNum<4)
+            miniScreenBarSize(potNum, adcChannelValue[potNum]); //display a bar in the text area to show the current value
+          else  //i added this because 4 was used for NoteNumber and the slider is closer to right side of screen so pot 4 is zone 5
+            miniScreenBarSize(5,adcChannelValue[potNum]);
           midiMsg = true;
           
         } 
