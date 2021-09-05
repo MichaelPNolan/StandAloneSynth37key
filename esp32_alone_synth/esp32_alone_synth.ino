@@ -17,6 +17,7 @@
 TaskHandle_t  Core0TaskHnd ;
 boolean       USBConnected;
 uint16_t      task0cycles;
+uint32_t      beatcycles,oneSec;
 
 void setup()
 {
@@ -64,8 +65,9 @@ void setup()
 #ifdef MIDI_VIA_USB_ENABLED
     UsbMidi_Setup();
 #endif
-
-
+    arpeggiatorSetup();
+    beatcycles = calcWaitPerBeat();
+    oneSec = float(SAMPLE_RATE);
 
     Serial.printf("ESP.getFreeHeap() %d\n", ESP.getFreeHeap());
     Serial.printf("ESP.getMinFreeHeap() %d\n", ESP.getMinFreeHeap());
@@ -78,6 +80,7 @@ void setup()
 #if 0 /* activate this line to get a tone on startup to test the DAC */
     //Synth_NoteOn(0, 64, 1.0f);
 #endif
+   
 
 #if (defined ADC_TO_MIDI_ENABLED) || (defined MIDI_VIA_USB_ENABLED)
     xTaskCreatePinnedToCore(Core0Task, "Core0Task", 8000, NULL, 999, &Core0TaskHnd, 0);
@@ -145,12 +148,12 @@ void Core0Task(void *parameter)
  * use this if something should happen every second
  * - you can drive a blinking LED for example
  */
-inline void Loop_1Hz(void)
-{
-   //Blink_Process();
-   
-}
 
+
+inline void pulseClock(void)
+{
+   Blink_Process();
+}
 
 /*
  * our main loop
@@ -161,17 +164,22 @@ float fl_sample, fr_sample;
 
 void loop()
 {
-    static uint32_t loop_cnt_1hz;
+    static uint32_t loop_cnt_1beat;
     static uint8_t loop_count_u8 = 0;
 
     loop_count_u8++;
 
-    loop_cnt_1hz ++;
-    if (loop_cnt_1hz >= SAMPLE_RATE)
+    loop_cnt_1beat ++;
+    if (loop_cnt_1beat >= beatcycles)
     {
-        Loop_1Hz();
-        loop_cnt_1hz = 0;
+
+        loop_cnt_1beat = 0;
+        beatcycles = calcWaitPerBeat();
+        if(checkArpeggiator())
+          pulseClock();
     }
+    if (loop_cnt_1beat >= oneSec)
+       beatcycles = calcWaitPerBeat();
 
 #ifdef I2S_NODAC
     if (writeDAC(l_sample))

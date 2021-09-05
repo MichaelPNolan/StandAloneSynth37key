@@ -18,7 +18,7 @@
 #define extraButtons  //(additional buttons to be serviced direct to board)
 //#define MIDI_VIA_USB_ENABLED
 #define DISPLAY_1306
-
+#define USE_MODIFIER_KEYCOMMANDS
 /* this will force using const velocity for all notes, remove this to get dynamic velocity */
 //#define MIDI_USE_CONST_VELOCITY
 
@@ -65,6 +65,7 @@
 #define  ADC_DIRECT_TR   34 //top right
 #define  ADC_DIRECT_BL   35 //bottom left
 #define  ADC_DIRECT_BR   36 //bottom right
+#define  ADC_FADER_ONE   15 // only one
 
 //This code is half relevant but initializing the ADC calls in here is 
 //1) Incompatible with the device libraries beyond 1.0.4 after which they changed the ADC calls for ESP on arduino

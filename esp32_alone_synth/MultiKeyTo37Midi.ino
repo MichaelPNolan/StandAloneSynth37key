@@ -82,18 +82,29 @@ void serviceKeyboardMatrix() {
     {
       if ( kpd.key[i].stateChanged )   // Only find keys that have changed state.
       {
-        if(!commandState() && kpd.key[i].kstate == RELEASED)
+        #ifdef USE_MODIFIER_KEYCOMMANDS
+        if(!commandState() && kpd.key[i].kstate == RELEASED){
           keyToCommand(uint8_t(kpd.key[i].kchar));
-        // let it also do the keyboard notes playing effect as well as triggering command in previous call/check
-        if (uint8_t(kpd.key[i].kchar) > 0){ //some possible/unused keys were mapped to 0 in the keyboard char array to prevent output
-          keyToNote(uint8_t(kpd.key[i].kchar),i);
+          arpAllOff();
         }
+        #endif
+        // let it also do the keyboard notes playing effect as well as triggering command in previous call/check
+         //when the arpeggiator mode is on don't play
+        if (uint8_t(kpd.key[i].kchar) > 0){ //some possible/unused keys were mapped to 0 in the keyboard char array to prevent output
+          if(!checkArpeggiator()){         
+            keyToNote(uint8_t(kpd.key[i].kchar),i);
+          } else {
+            keyToArpMap(uint8_t(kpd.key[i].kchar),i);
+          }
+          
+        }
+        
 
-      }
-    }
-  }
-}  // End loop
-
+      
+     }
+   }
+  }  // End loop
+}
 
 void keyToNote(uint8_t  keyUS, int i){
   keyUS += keyMod*semiModifier; //semiModifier is set in ADC from one of the pots to a 1.0f value and keyMod is whatever you want as adjust range
@@ -122,6 +133,25 @@ void keyToNote(uint8_t  keyUS, int i){
   #endif
 }
 
+void keyToArpMap(uint8_t  keyUS, int i){
+  keyUS += keyMod*semiModifier; //semiModifier is set in ADC from one of the pots to a 1.0f value and keyMod is whatever you want as adjust range
+  switch (kpd.key[i].kstate) {  // Report active keystate based on typedef enum{ IDLE, PRESSED, HOLD, RELEASED } KeyState;
+      case PRESSED:
+          //msg = " PRESSED.";
+          Arp_NoteOn(keyUS); //unchecked if type works as a note - was defaulted to 1.0f for velocity
+          break;
+      case HOLD:
+          //msg = " HOLD.";
+          break;
+      case RELEASED:
+          //msg = " RELEASED.";
+          Arp_NoteOff(keyUS);
+          break;
+      case IDLE:
+          msg = " IDLE.";
+  }
+}
+
 void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button was held and a key was released
   
   switch (keyCom) { 
@@ -141,11 +171,15 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
           msg = "Bank Set.3"; //use like mousebutton up ... after release trigger
           setBank(3);
           break;
+      case 24:
+          msg = "Arpeggiator Set";
+          setBank(4);
+          break;
 
 
   }
   #ifdef DISPLAY_1306
-  miniScreenString(6,1,"COM:"+String(keyCom),HIGH);
+  miniScreenString(7,1,"Keyboard Com:"+String(keyCom),HIGH);
   
   #else
   Serial.print("Command :/");//

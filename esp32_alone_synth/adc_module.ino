@@ -45,6 +45,11 @@
 #define CONTROL_DELAY_SET_LEVEL 16
 #define CONTROL_DELAY_SET_FEEDBACK 17
 #define CONTROL_SEMITONES 18
+#define ARP_STATE 20
+#define ARP_VARIATION 21
+#define ARP_HOLD 22
+#define ARP_NOTE_LEN 23
+#define ARP_BPM 24
 
 
 #ifdef extraButtons
@@ -56,18 +61,19 @@
 #endif
 
 #define NUMDIRECTPOTS   5  // 4 potentiometers wired to pings by position TL 35, TR 34, BL 39, BR 36
-#define NUMBANKS        4
-uint8_t adcSimplePins[NUMDIRECTPOTS] = { ADC_DIRECT_TL, ADC_DIRECT_TR, ADC_DIRECT_BL, ADC_DIRECT_BR, 15};// pot pins defined in config.h by location 
+#define NUMBANKS        5
+uint8_t adcSimplePins[NUMDIRECTPOTS] = { ADC_DIRECT_TL, ADC_DIRECT_TR, ADC_DIRECT_BL, ADC_DIRECT_BR, ADC_FADER_ONE};// pot pins defined in config.h by location 
                         // extraButtons (above) used to change parameter type related to this pot
                      
 uint8_t potBank[NUMBANKS][NUMDIRECTPOTS] = { {SYNTH_PARAM_VEL_ENV_ATTACK,SYNTH_PARAM_VEL_ENV_DECAY,
-                                        SYNTH_PARAM_VEL_ENV_SUSTAIN,SYNTH_PARAM_VEL_ENV_RELEASE,SYNTH_PARAM_WAVEFORM_1},  //end bank 0
+                                        SYNTH_PARAM_VEL_ENV_SUSTAIN,SYNTH_PARAM_VEL_ENV_RELEASE,SYNTH_PARAM_WAVEFORM_1},  //end bank 0 Vel envelope
                                         {SYNTH_PARAM_FIL_ENV_ATTACK,SYNTH_PARAM_FIL_ENV_DECAY,
-                                         SYNTH_PARAM_FIL_ENV_SUSTAIN,SYNTH_PARAM_FIL_ENV_RELEASE, SYNTH_PARAM_WAVEFORM_2 }, //end bank 1
+                                         SYNTH_PARAM_FIL_ENV_SUSTAIN,SYNTH_PARAM_FIL_ENV_RELEASE, SYNTH_PARAM_WAVEFORM_2 }, //end bank 1 Filter env
                                          {SYNTH_PARAM_MAIN_FILT_RESO,SYNTH_PARAM_MAIN_FILT_CUTOFF,
-                                        SYNTH_PARAM_VOICE_FILT_RESO ,SYNTH_PARAM_VOICE_NOISE_LEVEL,CONTROL_PARAM_MAX_VOL}, //end bank 2
+                                        SYNTH_PARAM_VOICE_FILT_RESO ,SYNTH_PARAM_VOICE_NOISE_LEVEL,CONTROL_PARAM_MAX_VOL}, //end bank 2  Res Cut Noise Vol
                                         {CONTROL_DELAY_SET_LENGTH,CONTROL_DELAY_SET_LEVEL,
-                                         CONTROL_DELAY_SET_FEEDBACK,SYNTH_PARAM_MAIN_FILT_CUTOFF, CONTROL_SEMITONES }}; //end bank 3
+                                         CONTROL_DELAY_SET_FEEDBACK,SYNTH_PARAM_MAIN_FILT_CUTOFF, CONTROL_SEMITONES },//end bank 3  Delay and Pitch
+                                         {ARP_STATE,ARP_VARIATION,ARP_HOLD,ARP_NOTE_LEN, ARP_BPM }}; //end bank 4
                                          
 
 
@@ -117,6 +123,9 @@ void readSimplePots(){
 // the text for what parameter settings are mapped to the pots and slider
 void screenLabelPotBank(){
   uint8_t color;
+  if(bankValue < 4)
+    useArpToggle(LOW);
+    
   switch(bankValue){
     case 0:
        color = 1;
@@ -149,6 +158,14 @@ void screenLabelPotBank(){
        miniScreenString(2,color,"D.Feedback",HIGH);
        miniScreenString(3,color,"M.Cutoff",HIGH);
        miniScreenString(5,color,"Semitones",HIGH);
+       break;
+     case 4:
+       miniScreenString(0,color,"Arpeg-On!",HIGH);
+       miniScreenString(1,color,"Variation",HIGH);
+       miniScreenString(2,color,"HOLD",HIGH);
+       miniScreenString(3,color,"NoteLength",HIGH);
+       miniScreenString(5,color,"BPM",HIGH);
+       useArpToggle(HIGH);
        break;
   }
 } 
@@ -237,6 +254,23 @@ void Custom_SetParam(uint8_t slider, float value)
       break;
     case CONTROL_SEMITONES:
       keyboardSetSemiModifier(value);
+      break;
+    case ARP_STATE:
+      setArpState(value);  //to be coded
+      break;
+    case ARP_VARIATION:
+      setArpVariation(value); //to be coded
+      break;
+    case ARP_HOLD:
+      setArpHold(value);  //to be coded
+      break;
+    case ARP_NOTE_LEN:
+      setArpNoteLength(value);  //to be coded
+      break;
+    case ARP_BPM:
+      setBPM(value);    //set beats per minute
+      miniScreenString(6,1,String(checkBPM()),HIGH);
+      break;
   }
 }
 
@@ -314,14 +348,17 @@ void processButtons(){
     // if the button state has changed:
     if (readBankButton != bankButtonState) {
       bankButtonState = readBankButton;
-      digitalWrite(LED_PIN, !bankButtonState);
       
+    #ifdef USE_MODIFIER_KEYCOMMANDS
+    digitalWrite(LED_PIN, !bankButtonState);
+    #else //rotate banks
       // only toggle the LED if the new button state is HIGH
       if (bankButtonState == LOW) {
          toggleBankButton();
          waveformParamSet = waveformParamSet + 1; //analogueParamSet++;
          
       }
+    #endif
     }
   }/*
   if ((millis() - lastDBDebounceTime) > debounceDelay) {
