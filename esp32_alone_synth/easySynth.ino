@@ -595,7 +595,7 @@ inline void Synth_NoteOn(uint8_t ch, uint8_t note, float vel)
      */
     if ((voice == NULL) || (osc == NULL))
     {
-        miniScreenString(7,1,"-no voice-",HIGH);
+        //miniScreenString(7,1,"-no voice-",HIGH);
 
         //Serial.printf("voc: %d, osc: %d\n", voc_act, osc_act);
         return ;
