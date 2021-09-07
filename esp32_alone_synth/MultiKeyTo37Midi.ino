@@ -85,17 +85,14 @@ void serviceKeyboardMatrix() {
         #ifdef USE_MODIFIER_KEYCOMMANDS
         if(!commandState() && kpd.key[i].kstate == RELEASED){
           keyToCommand(uint8_t(kpd.key[i].kchar));
-          arpAllOff();
+          //arpAllOff();  //test code when it wasn't working well
         }
         #endif
         // let it also do the keyboard notes playing effect as well as triggering command in previous call/check
          //when the arpeggiator mode is on don't play
         if (uint8_t(kpd.key[i].kchar) > 0){ //some possible/unused keys were mapped to 0 in the keyboard char array to prevent output
-          if(!checkArpeggiator()){         
-            keyToNote(uint8_t(kpd.key[i].kchar),i);
-          } else {
-            keyToArpMap(uint8_t(kpd.key[i].kchar),i);
-          }
+                     
+          keyToNote(uint8_t(kpd.key[i].kchar),i); // this may fix my bad logic - move arpeggiator test into keytoNote
           
         }
         
@@ -106,27 +103,36 @@ void serviceKeyboardMatrix() {
   }  // End loop
 }
 
+
+
 void keyToNote(uint8_t  keyUS, int i){
   keyUS += keyMod*semiModifier; //semiModifier is set in ADC from one of the pots to a 1.0f value and keyMod is whatever you want as adjust range
   switch (kpd.key[i].kstate) {  // Report active keystate based on typedef enum{ IDLE, PRESSED, HOLD, RELEASED } KeyState;
       case PRESSED:
           //msg = " PRESSED.";
-          Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
+          if(!checkArpeggiator())
+            Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
           break;
       case HOLD:
           //msg = " HOLD.";
+          if(checkArpeggiator())
+            Arp_NoteOn(keyUS);
           break;
       case RELEASED:
           //msg = " RELEASED.";
+          if(checkArpeggiator())
+            Arp_NoteOff(keyUS);
           Synth_NoteOff(0, keyUS);
           break;
-      case IDLE:
+      case IDLE:    // there are times when idle needs to be calling noteOff because you had notes on hold in arpeggiator
           msg = " IDLE.";
+          //if(checkArpeggiator())
+            Arp_NoteOff(keyUS);
   }
   #ifdef DISPLAY_1306
   miniScreenString(6,1,"N#:"+String(keyUS),HIGH);
   
-  #else
+  //#else
   Serial.print("Key :/");//+String(LIST_MAX));
   Serial.print(uint8_t(kpd.key[i].kchar));
   Serial.println(msg);
@@ -179,7 +185,10 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
 
   }
   #ifdef DISPLAY_1306
-  miniScreenString(7,1,"Keyboard Com:"+String(keyCom),HIGH);
+  if(!checkArpHold())  //you need to know if ArpHold is on because otherwise it will stay until you go back to the Arpeggiator bank
+    miniScreenString(7,1,"Keyboard Com:"+String(keyCom),HIGH);
+  else
+    miniScreenString(7,1,"ArpON+KbdCom:"+String(keyCom),HIGH);
   
   #else
   Serial.print("Command :/");//

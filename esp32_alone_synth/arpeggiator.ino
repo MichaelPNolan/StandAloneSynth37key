@@ -105,13 +105,15 @@ inline void Arpeggiator_Process(void)
 {
    if(keyBoardChanged == HIGH){ //always be ready to have the latest notes when there is keyboard activity
      keyBoardChanged = LOW;
-     updateNoteOrder();
+     updateNoteOrder();  
+
+                        // need to make something to scan keymap properly for removed notes
    }
    
    if(nextNote > 0)
       Synth_NoteOff(0, noteOrder[nextNote-1]);
    if(noteOrder[nextNote] > 0){
-     Synth_NoteOn(0, noteOrder[nextNote], 64);
+     Synth_NoteOn(0, noteOrder[nextNote], 0.5);
      nextNote++;
    } else nextNote = 0; //restart at beginning of pattern
    
@@ -119,25 +121,49 @@ inline void Arpeggiator_Process(void)
 }
 
 void Arp_NoteOn(uint8_t note){
-  noteMap[note] = HIGH;
+  if(arpHold)  //arpHold is a toggle note type of mode
+    noteMap[note] = !noteMap[note];
+  else
+    noteMap[note] = HIGH;
   keyBoardChanged = HIGH;
 }
 
 void Arp_NoteOff(uint8_t note){
-  noteMap[note] = LOW;
+  if(!arpHold)
+    noteMap[note] = LOW;
   keyBoardChanged = HIGH;
 }
 
 void updateNoteOrder(){ //build a list of notes to play
+  bool noteRemoved = LOW;
   uint8_t noteSlot = 0;
   for(int i=0; i < 128; i++){
     if (noteMap[i]){
+      Serial.print(String(i));
       if(noteSlot<PATTERN_LENGTH){
         noteOrder[noteSlot] = i;
         noteSlot++;
       }
+    } else { //if noteMap[i] is LOW check if it is in the pattern as a note
+      for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
+        if((noteOrder[j] == i) && !noteRemoved){ //only do this setting once 
+          noteRemoved = HIGH;
+          Synth_NoteOff(0, noteOrder[j] ); //if you don't do this now you have to make some system to process noteoff later
+        } 
+        if(noteRemoved) 
+        {
+          if(j == (PATTERN_LENGTH-1))  //aka if this is not the last note in pattern
+             noteOrder[j] = 0;
+          else
+             noteOrder[j] = noteOrder[j+1]; // erase note by moving all notes back overwriting it
+             
+        }
+        
+      }
+      noteRemoved = LOW;
     }
   }
+  Serial.println();
 }
 
 void setArpState(float value){  
@@ -189,12 +215,17 @@ void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,en
   }
 }
 
+boolean checkArpHold(){ //i've set it to check this in adc bank change - if arpHold is on its not going to toggle arp mode off or silence all notes
+  return arpHold;
+}
+
 void setArpHold(float value){ //to be coded
    if(value > 0.5f){
       arpHold = HIGH;
       miniScreenString(2,1,"HOLD ON",HIGH);
    }else{
       arpHold = LOW;
+      arpAllOff();  // this should send note off
       miniScreenString(2,0,"HOLD OFF",HIGH);
    }
 }

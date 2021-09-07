@@ -123,7 +123,7 @@ void readSimplePots(){
 // the text for what parameter settings are mapped to the pots and slider
 void screenLabelPotBank(){
   uint8_t color;
-  if(bankValue < 4){
+  if(bankValue < 4 && !checkArpHold()){
     useArpToggle(LOW);
     arpAllOff();
   }
