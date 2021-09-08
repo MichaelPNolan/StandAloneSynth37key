@@ -112,11 +112,13 @@ void keyToNote(uint8_t  keyUS, int i){
           //msg = " PRESSED.";
           if(!checkArpeggiator())
             Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
+          else
+            Arp_NoteOn(keyUS);
           break;
       case HOLD:
           //msg = " HOLD.";
-          if(checkArpeggiator())
-            Arp_NoteOn(keyUS);
+         // if(checkArpeggiator())
+           // Arp_NoteOn(keyUS);
           break;
       case RELEASED:
           //msg = " RELEASED.";
