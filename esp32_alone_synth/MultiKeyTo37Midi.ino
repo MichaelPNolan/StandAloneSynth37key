@@ -117,7 +117,7 @@ void keyToNote(uint8_t  keyUS, int i){
           break;
       case HOLD:
           //msg = " HOLD.";
-         // if(checkArpeggiator())
+         // if(checkArpeggiator()) // this idea - was too slow so I moved the Arp_NoteOn back up to PRESSED status
            // Arp_NoteOn(keyUS);
           break;
       case RELEASED:
@@ -127,14 +127,14 @@ void keyToNote(uint8_t  keyUS, int i){
           Synth_NoteOff(0, keyUS);
           break;
       case IDLE:    // there are times when idle needs to be calling noteOff because you had notes on hold in arpeggiator
-          msg = " IDLE.";
+          //msg = " IDLE.";
           //if(checkArpeggiator())
             Arp_NoteOff(keyUS);
   }
   #ifdef DISPLAY_1306
   miniScreenString(6,1,"N#:"+String(keyUS),HIGH);
   
-  //#else
+  #else
   Serial.print("Key :/");//+String(LIST_MAX));
   Serial.print(uint8_t(kpd.key[i].kchar));
   Serial.println(msg);
