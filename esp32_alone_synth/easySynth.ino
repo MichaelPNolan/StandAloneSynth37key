@@ -15,6 +15,7 @@
  * - waveform1 -> detune
  * - waveform2 -> oscillator count
  */
+#include "AKWF_violin.h"
 //#define USE_UNISON
 
 
@@ -60,8 +61,8 @@
  * this is just a kind of magic to go through the waveforms
  * - WAVEFORM_BIT sets the bit length of the pre calculated waveforms
  */
-#define WAVEFORM_BIT	10UL
-#define WAVEFORM_CNT	(1<<WAVEFORM_BIT)
+#define WAVEFORM_BIT	10UL   //U unsigned L long so 10
+#define WAVEFORM_CNT	(1<<WAVEFORM_BIT)  // 2^10 - 1024 floats size 
 #define WAVEFORM_Q4		(1<<(WAVEFORM_BIT-2))
 #define WAVEFORM_MSK	((1<<WAVEFORM_BIT)-1)
 #define WAVEFORM_I(i)	((i) >> (32 - WAVEFORM_BIT)) & WAVEFORM_MSK
@@ -212,7 +213,7 @@ void Synth_Init()
     crappy_noise = (float *)malloc(sizeof(float) * WAVEFORM_CNT);
     silence = (float *)malloc(sizeof(float) * WAVEFORM_CNT);
 
-
+    Serial.println("Waveform size: "+String(WAVEFORM_CNT));
     /*
      * let us calculate some waveforms
      * - using lookup tables can save a lot of processing power later
@@ -227,7 +228,9 @@ void Synth_Init()
         pulse[i] = (i > (WAVEFORM_CNT / 4)) ? 1 : -1;
         tri[i] = ((i > (WAVEFORM_CNT / 2)) ? (((4.0f * (float)i) / ((float)WAVEFORM_CNT)) - 1.0f) : (3.0f - ((4.0f * (float)i) / ((float)WAVEFORM_CNT)))) - 2.0f;
         crappy_noise[i] = (random(1024) / 512.0f) - 1.0f;
-        silence[i] = 0;
+        //silence[i] = 0;
+        //silence[i] = (float)pgm_read_word_near( AKWF_violin_0004 + i )/32000.0;
+        silence[i] = (float)pgm_read_word_near(AKWF_blended_0001 + i)/32000.0;
     }
 
     waveFormLookUp[0] = sine;

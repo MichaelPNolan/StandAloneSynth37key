@@ -23,14 +23,16 @@ void Blink_Process(void) //I'm using the blink as a tempo meter and I'll display
     if (ledOn)
     {
         digitalWrite(LED_PIN, HIGH);   // turn the LED on (HIGH is the voltage level)
-        miniScreenString(7,1,pulseString(),HIGH);
+        if(checkBankValue() == 4)  //bank 4 is arpeggiator - there you can draw the moving pulse message 'pulse string'
+          miniScreenString(7,1,pulseString(),HIGH);
 
 
     }
     else
     {
         digitalWrite(LED_PIN, LOW);    // turn the LED off
-        miniScreenString(7,1,pulseString(),HIGH);
+        if(checkBankValue() == 4)
+          miniScreenString(7,1,pulseString(),HIGH);
 
     }
     ledOn = !ledOn;

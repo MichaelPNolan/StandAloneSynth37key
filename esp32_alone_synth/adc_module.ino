@@ -35,6 +35,7 @@
 #define SYNTH_PARAM_MAIN_FILT_RESO    11
 #define SYNTH_PARAM_VOICE_FILT_RESO   12
 #define SYNTH_PARAM_VOICE_NOISE_LEVEL 13
+#define WAVEFORM_TYPE_COUNT  7
 
 //new customer parameters not handled by modules as forked
 #define CONTROL_PARAM_MAX_VOL  14
@@ -83,6 +84,7 @@ uint8_t  bankValue;
 unsigned long lastUBDebounceTime,lastDBDebounceTime;
 unsigned long debounceDelay = 50; 
 
+
 struct adc_to_midi_s
 {
     uint8_t ch;
@@ -112,6 +114,7 @@ float *AdcMul_GetValues(void)
 {
     return adcChannelValue;
 }
+
 void readSimplePots(){
   for(int i=0; i<NUMDIRECTPOTS; i++)
     adcSimple(i);
@@ -120,7 +123,16 @@ void readSimplePots(){
                                                 //void setTextColor(uint16_t color);
                                                 //void setTextColor(uint16_t color, uint16_t backgroundcolor);
 
+uint8_t checkBankValue(){  //this is now called by the blink module because it does some tempo related graphics for arpeggiator bank
+  return bankValue;
+}
+
 // the text for what parameter settings are mapped to the pots and slider
+// unlike the basicSynth version of the project this idea of banks of functions for the onboard pots/slider is managed here
+// whereas in the other project I over-rode the easysynth module's serial debug output to write to zones of a bigger screen
+// I'm writing here because I got confused about that 
+// Originally I uses the bank button to rotate through but as I developed more functionality I made the bankButton a
+// modifier key - then keys on the keyboard can bring on banks
 void screenLabelPotBank(){
   uint8_t color;
   if(bankValue < 4 && !checkArpHold()){
@@ -135,7 +147,7 @@ void screenLabelPotBank(){
        miniScreenString(1,color,"Decay",HIGH);
        miniScreenString(2,color,"Sustain",HIGH);
        miniScreenString(3,color,"Release",HIGH);
-       miniScreenString(5,color,"Waveform >",HIGH);
+       miniScreenString(5,color,"Waveform1>",HIGH);
        break;
     case 1:
        color = 1;
@@ -164,7 +176,10 @@ void screenLabelPotBank(){
      case 4:
        miniScreenString(0,color,"Arpeg-On!",HIGH);
        miniScreenString(1,color,"Variation",HIGH);
-       miniScreenString(2,color,"HOLD",HIGH);
+       if(checkArpHold())         //previous wrote miniScreenString(2,color,"HOLD",HIGH); but switching back to this bank should indicate state on/off
+         setArpHold(0.6);     //above 0.5 is high
+       else
+         setArpHold(0.4);     //below 0.5 is low - it defaults to this during it's initialization so this would be first message                        
        miniScreenString(3,color,"NoteLength",HIGH);
        miniScreenString(5,color,"BPM",HIGH);
        useArpToggle(HIGH);
@@ -207,6 +222,11 @@ void  adcSimple(uint8_t potNum){
              Synth_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]);   //see easySynth module
           else
              Custom_SetParam(potBank[bankValue][potNum], adcChannelValue[potNum]);
+          if(potBank[bankValue][potNum] == SYNTH_PARAM_WAVEFORM_1) //write name of waveform
+            waveFormTextUpdate(1, uint8_t((adcChannelValue[potNum]) * (WAVEFORM_TYPE_COUNT)),5);
+          if(potBank[bankValue][potNum] == SYNTH_PARAM_WAVEFORM_2) //write name of waveform
+            waveFormTextUpdate(2, uint8_t((adcChannelValue[potNum]) * (WAVEFORM_TYPE_COUNT)),5);
+              
           if(potNum<4)
             miniScreenBarSize(potNum, adcChannelValue[potNum]); //display a bar in the text area to show the current value
           else  //i added this because 4 was used for NoteNumber and the slider is closer to right side of screen so pot 4 is zone 5
@@ -227,7 +247,7 @@ void  adcSimple(uint8_t potNum){
             #ifdef ADC_INVERT
             uint8_t idx = (ADC_INPUTS - 1) -analogueParamSet;
             #else
-            uint8_t idx = analogueParamSet;
+            uint8_t idx = analogueParamSet;waveFormTextUpdate
             #endif
             if (lastSendVal[idx] != midiValueU7)
             {
@@ -317,12 +337,40 @@ bool commandState(){
   return bankButtonState;
 }
 
-void waveFormSet(float potVal){
-     Synth_SetParam(8, potVal); // if you have a int then  float(waveformParamSet/7.0f)SYNTH_PARAM_WAVEFORM_1 = 8 unless unison mode in the its detune
-   //Synth_SetParam(9, float(waveformParamSet/7.0f));
-   //Serial.println("WaveformSet: "+ String(waveformParamSet));
+void waveFormTextUpdate(uint8_t waveChannel, uint8_t selWaveForm, int potBank){ //two wave channels 0, 1 and 
+  switch(selWaveForm){
+  /*reference: "easySynth.ino module"
+    waveFormLookUp[0] = sine;
+    waveFormLookUp[1] = saw;
+    waveFormLookUp[2] = square;
+    waveFormLookUp[3] = pulse;
+    waveFormLookUp[4] = tri;
+    waveFormLookUp[5] = crappy_noise;
+    waveFormLookUp[6] = silence;*/
+    case 0: 
+       msg="sine";
+       break;
+    case 1: 
+       msg="saw";
+       break;
+    case 2: 
+       msg="square";
+       break;
+    case 3: 
+       msg="pulse";
+       break;
+    case 4: 
+       msg="triangle";
+       break;
+    case 5: 
+       msg="crapnoise";
+       break;
+    case 6: 
+       msg="sil-usr";
+       break;
+  }
+   miniScreenString(potBank,1,String(waveChannel)+":"+msg,HIGH);
 }
-
 // added by Michael to this library which is really for processing knobs and buttons - this is buttons
 // Before Aug 27 2020 there was only one button for the alone synth for changing bank for the 4 pots
 void processButtons(){

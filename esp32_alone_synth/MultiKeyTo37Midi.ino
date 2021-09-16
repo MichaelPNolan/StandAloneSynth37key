@@ -43,7 +43,7 @@ Keypad_MC17 kpd( makeKeymap(keys), rowPins, colPins, ROWS, COLS, I2CADDR );
 
 float volumeParam = 1.0f;
 float semiModifier = 0.5f;
-
+bool noNote = 0;
 
 
 unsigned long loopCount = 0;
@@ -57,7 +57,6 @@ void setupKeyboard() {
   kpd.begin( );                // now does not starts wire library
   kpd.setDebounceTime(1);
   //scan();
-  //Serial.println("myLIST_MAX ="+String(myLIST_MAX));
   
 }
 
@@ -76,6 +75,7 @@ void serviceKeyboardMatrix() {
   //const int myLIST_MAX = LIST_MAX - 2; //42
   // Fills kpd.key[ ] array with up-to 10 active keys.
   // Returns true if there are ANY active keys.
+ 
   if (kpd.getKeys())
   {
     for (int i=0; i<LIST_MAX; i++)   // Scan the whole key list.  LIST_MAX
@@ -83,21 +83,23 @@ void serviceKeyboardMatrix() {
       if ( kpd.key[i].stateChanged )   // Only find keys that have changed state.
       {
         #ifdef USE_MODIFIER_KEYCOMMANDS
-        if(!commandState() && kpd.key[i].kstate == RELEASED){
+        if(!commandState() && kpd.key[i].kstate == PRESSED){
           keyToCommand(uint8_t(kpd.key[i].kchar));
           //arpAllOff();  //test code when it wasn't working well
+          
         }
         #endif
         // let it also do the keyboard notes playing effect as well as triggering command in previous call/check
          //when the arpeggiator mode is on don't play
-        if (uint8_t(kpd.key[i].kchar) > 0){ //some possible/unused keys were mapped to 0 in the keyboard char array to prevent output
-                     
-          keyToNote(uint8_t(kpd.key[i].kchar),i); // this may fix my bad logic - move arpeggiator test into keytoNote
-          
-        }
+        if(noNote == 0)
+          if (uint8_t(kpd.key[i].kchar) > 0){ //some possible/unused keys were mapped to 0 in the keyboard char array to prevent output
+                       
+            keyToNote(uint8_t(kpd.key[i].kchar),i); // this may fix my bad logic - move arpeggiator test into keytoNote
+            
+          }
         
 
-      
+      noNote = 0; // reset flag to enable notes - flag was set because of a modifier keyboard command
      }
    }
   }  // End loop
@@ -110,7 +112,7 @@ void keyToNote(uint8_t  keyUS, int i){
   switch (kpd.key[i].kstate) {  // Report active keystate based on typedef enum{ IDLE, PRESSED, HOLD, RELEASED } KeyState;
       case PRESSED:
           //msg = " PRESSED.";
-          if(!checkArpeggiator())
+          if(checkBankValue() != 4)//(!checkArpeggiator())
             Synth_NoteOn(0, keyUS, volumeParam); //unchecked if type works as a note - was defaulted to 1.0f for velocity
           else
             Arp_NoteOn(keyUS);
@@ -122,7 +124,7 @@ void keyToNote(uint8_t  keyUS, int i){
           break;
       case RELEASED:
           //msg = " RELEASED.";
-          if(checkArpeggiator())
+          if(checkBankValue() != 4)//(checkArpeggiator())
             Arp_NoteOff(keyUS);
           Synth_NoteOff(0, keyUS);
           break;
@@ -140,7 +142,7 @@ void keyToNote(uint8_t  keyUS, int i){
   Serial.println(msg);
   #endif
 }
-
+//defunct
 void keyToArpMap(uint8_t  keyUS, int i){
   keyUS += keyMod*semiModifier; //semiModifier is set in ADC from one of the pots to a 1.0f value and keyMod is whatever you want as adjust range
   switch (kpd.key[i].kstate) {  // Report active keystate based on typedef enum{ IDLE, PRESSED, HOLD, RELEASED } KeyState;
@@ -164,28 +166,27 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
   
   switch (keyCom) { 
       case 20:
-          msg = "Bank Set.0"; //use like mousebutton up ... after release trigger
+          msg = "Bank 0: vel ADSR"; //use like mousebutton up ... after release trigger
           setBank(0);
           break;
       case 21:
-          msg = "Bank Set.1"; //use like mousebutton up ... after release trigger
+          msg = "Bank 1: filter ADSR"; //use like mousebutton up ... after release trigger
           setBank(1);
           break;
       case 22:
-          msg = "Bank Set.2"; //use like mousebutton up ... after release trigger
+          msg = "Bank 2: filter settings"; //use like mousebutton up ... after release trigger
           setBank(2);
           break;
       case 23:
-          msg = "Bank Set.3"; //use like mousebutton up ... after release trigger
+          msg = "Bank 3: delay settings "; //use like mousebutton up ... after release trigger
           setBank(3);
           break;
       case 24:
-          msg = "Arpeggiator Set";
+          msg = "Bank 4: Arpeggiator Set";
           setBank(4);
           break;
-
-
   }
+  noNote = 1;
   #ifdef DISPLAY_1306
   if(!checkArpHold())  //you need to know if ArpHold is on because otherwise it will stay until you go back to the Arpeggiator bank
     miniScreenString(7,1,"Keyboard Com:"+String(keyCom),HIGH);
@@ -198,6 +199,7 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
   Serial.println(msg);
   #endif
 }
+
 void scan() {
   byte error, address;
   int nDevices;
