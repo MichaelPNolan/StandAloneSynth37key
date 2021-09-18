@@ -66,6 +66,10 @@ void keyboardSetVolume(float value)
   volumeParam = value;
 }
 
+float getKeyboardVolume(){
+  return volumeParam;
+}
+
 void keyboardSetSemiModifier(float value)
 {
   semiModifier = value;

@@ -2,15 +2,21 @@
  * this file includes a system for managing arpeggios implementation
  *
  * Author: Michael Nolan
+ * 
+ * Initial design watches keyboard and sets up parameters like NoteLength, Tempo and a map of Keys to capture to fill an array with a list of notes - the arpeggio
+ * Redesigned the whole use of a button as a modifier button with keyboard notes held together to change mode for parameters mapped to ADC input
+ * Completed by Sep 11/2021
+ * Next step - there is a parameter for the pattern type - trigger calls to determine a pattern out of the list mapped from keyboard - into a new array
+ * So generate the array and then the pattern and always play based on pattern type selected
  */
 
-#define PATTERN_LENGTH 10
+#define PATTERN_LENGTH 24
 bool useArpeggiator, arpHold, arpState, keyBoardChanged;
 static float bpm;
 static uint32_t minuteRATE;
 bool noteMap[128];
-uint8_t noteOrder[PATTERN_LENGTH]; //see MAX_POLY_VOICE in easySynth
-static uint8_t nextNote; //ongoing index
+uint8_t noteOrder[PATTERN_LENGTH],patternOrder[PATTERN_LENGTH]; //see MAX_POLY_VOICE in easySynth
+static uint8_t nextNote, previousNoteNum; // nextNote ongoing index, whereas previousNoteNum is for making sure you turn off the last note played in case the list changes
 
 typedef enum arpVariationKind  { up,down,walk,threetwo,fourthree,randArp,entry,doubleTap};
 arpVariationKind arpPlayMethod;
@@ -31,6 +37,7 @@ inline void arpeggiatorSetup(void)
     keyBoardChanged = LOW;
     arpNoteLength = NoteQuarter;
     nextNote = 0;
+    previousNoteNum = 0;
 }
 
 inline bool checkArpeggiator(void){ //this means we are in the arppeggiator bank and we are running bpm flashing
@@ -90,8 +97,10 @@ void useArpToggle(bool use){
 }
 
 void arpAllOff(){  //also a general reset of arpeggiator
-  for(int i=0; i<PATTERN_LENGTH; i++) // clear the note order array
+  for(int i=0; i<PATTERN_LENGTH; i++){ // clear the note order array
     noteOrder[i] = 0;
+    patternOrder[i] = 0;
+  }
   for(int i=0; i<128; i++){ //send a note off to the whole range of notes
     Synth_NoteOff(0, i);
     noteMap[i] = LOW;      //erase the note map while you are at it
@@ -110,12 +119,13 @@ inline void Arpeggiator_Process(void)
                         // need to make something to scan keymap properly for removed notes
    }
    
-   if(nextNote > 0)
-      Synth_NoteOff(0, noteOrder[nextNote-1]);
+   if(previousNoteNum != 0)//(nextNote > 0)
+      Synth_NoteOff(0, previousNoteNum);
    if(noteOrder[nextNote] > 0){
-     Synth_NoteOn(0, noteOrder[nextNote], 0.5);
+     Synth_NoteOn(0, patternOrder[nextNote], getKeyboardVolume());   //old version used noteOrder = now that is used to generate patternOrder 
+     previousNoteNum = patternOrder[nextNote]; //there was a bug where if you removed a note from the pattern or map it wouldn't be ended before next note - so force capture it
      nextNote++;
-   } else nextNote = 0; //restart at beginning of pattern
+   } else nextNote = 0; //restart at beginning of pattern if the current note is 0 indicating end of list (list is filled with 0 when unused)
    
      
 }
@@ -134,12 +144,12 @@ void Arp_NoteOff(uint8_t note){
   keyBoardChanged = HIGH;
 }
 
-void updateNoteOrder(){ //build a list of notes to play
+void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfilled slots
   bool noteRemoved = LOW;
   uint8_t noteSlot = 0;
   for(int i=0; i < 128; i++){
     if (noteMap[i]){
-      Serial.print(String(i));
+      //Serial.print(String(i));
       if(noteSlot<PATTERN_LENGTH){
         noteOrder[noteSlot] = i;
         noteSlot++;
@@ -152,7 +162,7 @@ void updateNoteOrder(){ //build a list of notes to play
         } 
         if(noteRemoved) 
         {
-          if(j == (PATTERN_LENGTH-1))  //aka if this is not the last note in pattern
+          if(j == (PATTERN_LENGTH-1))  //aka if this is the last note in pattern leave a 0
              noteOrder[j] = 0;
           else
              noteOrder[j] = noteOrder[j+1]; // erase note by moving all notes back overwriting it
@@ -163,8 +173,29 @@ void updateNoteOrder(){ //build a list of notes to play
       noteRemoved = LOW;
     }
   }
-  Serial.println();
+  updatePatternOrder();
+  //Serial.println();
 }
+
+void updatePatternOrder(){
+  int counter=0;
+  switch(arpPlayMethod){
+    case down:
+      for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
+        if(noteOrder[j] !=0){ //only do this setting once 
+          patternOrder[counter] = noteOrder[j];
+          counter++;
+        }
+      } 
+      break;
+    default: //this is up which is a direct copy of noteOrder
+      for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
+        patternOrder[j] = noteOrder[j];
+        } 
+      break;
+  }
+}
+
 
 void setArpState(float value){  
    if(value > 0.5f){
@@ -213,6 +244,7 @@ void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,en
       miniScreenString(1,1,"V.2-tap",HIGH);
       break;
   }
+  updatePatternOrder();
 }
 
 boolean checkArpHold(){ //i've set it to check this in adc bank change - if arpHold is on its not going to toggle arp mode off or silence all notes

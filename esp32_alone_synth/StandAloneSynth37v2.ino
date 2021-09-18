@@ -68,7 +68,7 @@ void setup()
     arpeggiatorSetup();
     beatcycles = calcWaitPerBeat();
     noteCycles = noteLengthCycles(); // quarter note default
-    oneSec = float(SAMPLE_RATE);
+    oneSec = SAMPLE_RATE;
 
     Serial.printf("ESP.getFreeHeap() %d\n", ESP.getFreeHeap());
     Serial.printf("ESP.getMinFreeHeap() %d\n", ESP.getMinFreeHeap());
