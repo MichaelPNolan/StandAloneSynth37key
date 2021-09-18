@@ -15,7 +15,7 @@ bool useArpeggiator, arpHold, arpState, keyBoardChanged;
 static float bpm;
 static uint32_t minuteRATE;
 bool noteMap[128];
-uint8_t noteOrder[PATTERN_LENGTH],patternOrder[PATTERN_LENGTH]; //see MAX_POLY_VOICE in easySynth
+static uint8_t noteOrder[PATTERN_LENGTH],noteSequential[PATTERN_LENGTH],patternOrder[PATTERN_LENGTH]; //see MAX_POLY_VOICE in easySynth
 static uint8_t nextNote, previousNoteNum; // nextNote ongoing index, whereas previousNoteNum is for making sure you turn off the last note played in case the list changes
 
 typedef enum arpVariationKind  { up,down,walk,threetwo,fourthree,randArp,entry,doubleTap};
@@ -100,6 +100,7 @@ void arpAllOff(){  //also a general reset of arpeggiator
   for(int i=0; i<PATTERN_LENGTH; i++){ // clear the note order array
     noteOrder[i] = 0;
     patternOrder[i] = 0;
+    noteSequential[i] = 0;
   }
   for(int i=0; i<128; i++){ //send a note off to the whole range of notes
     Synth_NoteOff(0, i);
@@ -136,6 +137,7 @@ void Arp_NoteOn(uint8_t note){
   else
     noteMap[note] = HIGH;
   keyBoardChanged = HIGH;
+  addNoteSeq(note);
 }
 
 void Arp_NoteOff(uint8_t note){
@@ -144,12 +146,73 @@ void Arp_NoteOff(uint8_t note){
   keyBoardChanged = HIGH;
 }
 
+/*
+ * N
+ */
+void addNoteSeq(uint8_t note){
+  Serial.println("Add: "+String(note));
+  bool insertionDone = LOW;
+  for(int j=0; j<PATTERN_LENGTH; j++){
+    if(noteSequential[j] == note) //if we have the note already don't add it because arpeggiator input is defining a chord not a sequence as such
+      insertionDone = HIGH;
+    if((noteSequential[j] == 0) && !insertionDone){
+     noteSequential[j] = note;
+     insertionDone = HIGH;
+       
+    }
+    Serial.print(String(noteSequential[j]));
+  }
+  Serial.println();
+  //if there was no space left write a message that buffer is full
+  #ifdef DISPLAY_1306
+  if(!insertionDone)
+    miniScreenString(6,1,"FULL-B",HIGH);
+  
+  #endif
+}
+
+void delNoteSeq(uint8_t note){ //very similar to the updateNoteOrder and called by that routine to manage the noteSequential array
+  bool noteRemoved = LOW;
+  for(int j=0; j<PATTERN_LENGTH; j++){
+    if(noteSequential[j] == note) //check notes until you get to the note that needs deletion then flag
+       noteRemoved = HIGH;
+    if(noteRemoved) //remove and backfill array from this position to the end
+      {
+        if(j == (PATTERN_LENGTH-1))  //aka if this is the last note in pattern leave a 0
+           noteSequential[j] = 0;
+        else
+           noteSequential[j] = noteOrder[j+1]; // erase note by moving all notes back overwriting it
+      }
+  }
+  //this is only a once through note deletion scan so we don't need to reset noteRemoved flag like we do in updateNoteOrder
+}
+
+void delTailSeq(){
+  for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
+    if(noteSequential[j] !=0){ //only do this setting once 
+      
+      noteMap[noteSequential[j]] = LOW;
+      updateNoteOrder(); // call the noteOrder array builder which should now call a note remove instead of directly removing noteSequential[j] = 0;
+      j=-1;
+    }
+  }
+}
+/* 
+ *  Design notes: patterns and note order 
+ *  Scanning keyboard reveals the notes in order by collecting from the note map of whats on and off
+ *  Keepign both a array of the noteOrder (currently set arp notes) and the pattern order means as the arp patterns change
+ *  we can keep recreating them from the noteOrder array ... so the seeming redundancy is a kind of reference
+ *  If we want to play them according to when they were entered we have to store some kind of sequential order
+ *  That means we might need to maintain that separately because there is a variation for "according to when they were entered"
+ *  so I added noteSequential array (more like FIFO) and write commands to maintain the order they were added but its not a sequence as such
+ *  because you can't add 2 notes - tht will be a different module for sequencing (needs ties and rests)
+ */
 void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfilled slots
   bool noteRemoved = LOW;
   uint8_t noteSlot = 0;
   for(int i=0; i < 128; i++){
     if (noteMap[i]){
-      //Serial.print(String(i));
+      
       if(noteSlot<PATTERN_LENGTH){
         noteOrder[noteSlot] = i;
         noteSlot++;
@@ -158,9 +221,10 @@ void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfi
       for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
         if((noteOrder[j] == i) && !noteRemoved){ //only do this setting once 
           noteRemoved = HIGH;
+          delNoteSeq(noteOrder[j]);
           Synth_NoteOff(0, noteOrder[j] ); //if you don't do this now you have to make some system to process noteoff later
         } 
-        if(noteRemoved) 
+        if(noteRemoved) //remove and backfill array
         {
           if(j == (PATTERN_LENGTH-1))  //aka if this is the last note in pattern leave a 0
              noteOrder[j] = 0;
@@ -174,7 +238,7 @@ void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfi
     }
   }
   updatePatternOrder();
-  //Serial.println();
+  
 }
 
 void updatePatternOrder(){
@@ -187,6 +251,11 @@ void updatePatternOrder(){
           counter++;
         }
       } 
+      break;
+    case entry:
+      for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
+        patternOrder[j] = noteSequential[j];
+        } 
       break;
     default: //this is up which is a direct copy of noteOrder
       for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
@@ -236,7 +305,7 @@ void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,en
       miniScreenString(1,1,"V.Random",HIGH);
       break;
     case 7:
-      arpPlayMethod = entry;
+      arpPlayMethod = entry;  //according to when they were entered
       miniScreenString(1,1,"V.entryO",HIGH);
       break;
     case 8:

@@ -170,24 +170,28 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
   
   switch (keyCom) { 
       case 20:
-          msg = "Bank 0: vel ADSR"; //use like mousebutton up ... after release trigger
+          msg = "B0: vel ADSR"; //use like mousebutton up ... after release trigger
           setBank(0);
           break;
       case 21:
-          msg = "Bank 1: filter ADSR"; //use like mousebutton up ... after release trigger
+          msg = "B1: filter ADSR"; //use like mousebutton up ... after release trigger
           setBank(1);
           break;
       case 22:
-          msg = "Bank 2: filter settings"; //use like mousebutton up ... after release trigger
+          msg = "B2: filter main"; //use like mousebutton up ... after release trigger
           setBank(2);
           break;
       case 23:
-          msg = "Bank 3: delay settings "; //use like mousebutton up ... after release trigger
+          msg = "B3: delay"; //use like mousebutton up ... after release trigger
           setBank(3);
           break;
       case 24:
-          msg = "Bank 4: Arpeggiator Set";
+          msg = "B4: Arpeggiator";
           setBank(4);
+          break;
+      case 56:
+          msg = "RemoveTail Note";
+          delTailSeq();
           break;
   }
   noNote = 1;
@@ -195,7 +199,7 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
   if(!checkArpHold())  //you need to know if ArpHold is on because otherwise it will stay until you go back to the Arpeggiator bank
     miniScreenString(7,1,"Keyboard Com:"+String(keyCom),HIGH);
   else
-    miniScreenString(7,1,"ArpON+KbdCom:"+String(keyCom),HIGH);
+    miniScreenString(7,1,msg,HIGH);  //"ArpON+KbdCom:"+String(keyCom)
   
   #else
   Serial.print("Command :/");//
@@ -204,7 +208,7 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
   #endif
 }
 
-void scan() {
+void scan() { //spi bus scan for devices
   byte error, address;
   int nDevices;
   Serial.println("Scanning...");
