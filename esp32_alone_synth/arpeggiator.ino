@@ -42,18 +42,16 @@ inline void arpeggiatorSetup(void)
 
 inline bool checkArpeggiator(void){ //this means we are in the arppeggiator bank and we are running bpm flashing
   return useArpeggiator;
-  
 }
 
 inline bool checkArpState(void){ //this flag turns off arpeggio playback - defaults to on but pot can stop playback
   return arpState;
-  
 }
 
 inline float checkBPM(void){
   return bpm;
-  
 }
+
 inline void setBPM(float value){
   bpm = 300.0f*value+10;
 }
@@ -113,6 +111,7 @@ void arpAllOff(){  //also a general reset of arpeggiator
 
 inline void Arpeggiator_Process(void)
 {
+   Serial.print("* ");
    if(keyBoardChanged == HIGH){ //always be ready to have the latest notes when there is keyboard activity
      keyBoardChanged = LOW;
      updateNoteOrder();  
@@ -123,15 +122,23 @@ inline void Arpeggiator_Process(void)
    if(previousNoteNum != 0)//(nextNote > 0)
       Synth_NoteOff(0, previousNoteNum);
    if(noteOrder[nextNote] > 0){
-     Synth_NoteOn(0, patternOrder[nextNote], getKeyboardVolume());   //old version used noteOrder = now that is used to generate patternOrder 
+     if(patternOrder[nextNote] >1)
+       Synth_NoteOn(0, patternOrder[nextNote], getKeyboardVolume());   //old version used noteOrder = now that is used to generate patternOrder 
      previousNoteNum = patternOrder[nextNote]; //there was a bug where if you removed a note from the pattern or map it wouldn't be ended before next note - so force capture it
      nextNote++;
-   } else nextNote = 0; //restart at beginning of pattern if the current note is 0 indicating end of list (list is filled with 0 when unused)
+   } else {
+     nextNote = 0; //restart at beginning of pattern if the current note is 0 indicating end of list (list is filled with 0 when unused)
+     if(patternOrder[nextNote] >1)
+       Synth_NoteOn(0, patternOrder[nextNote], getKeyboardVolume());   //old version used noteOrder = now that is used to generate patternOrder 
+     previousNoteNum = patternOrder[nextNote]; //there was a bug where if you removed a note from the pattern or map it wouldn't be ended before next note - so force capture it
+     nextNote++;
+   }
    
      
 }
 
 void Arp_NoteOn(uint8_t note){
+  Serial.print("On: "+String(note));
   if(arpHold)  //arpHold is a toggle note type of mode
     noteMap[note] = !noteMap[note];
   else
@@ -141,6 +148,7 @@ void Arp_NoteOn(uint8_t note){
 }
 
 void Arp_NoteOff(uint8_t note){
+  Serial.print("Off: "+String(note));
   if(!arpHold)
     noteMap[note] = LOW;
   keyBoardChanged = HIGH;
@@ -173,6 +181,7 @@ void addNoteSeq(uint8_t note){
 
 void delNoteSeq(uint8_t note){ //very similar to the updateNoteOrder and called by that routine to manage the noteSequential array
   bool noteRemoved = LOW;
+  Serial.println("Del: "+String(note));
   for(int j=0; j<PATTERN_LENGTH; j++){
     if(noteSequential[j] == note) //check notes until you get to the note that needs deletion then flag
        noteRemoved = HIGH;
@@ -207,19 +216,28 @@ void delTailSeq(){
  *  so I added noteSequential array (more like FIFO) and write commands to maintain the order they were added but its not a sequence as such
  *  because you can't add 2 notes - tht will be a different module for sequencing (needs ties and rests)
  */
+
+//I'm sure there is a more efficient way to build a list over time without notemap a binary array 0-127 but i made this to get started fast
+//its possible of course you can just manage NoteOrder without noteMap but the idea is that keys can get turn off and on in note map and less frequently
+// you update the list of notes held for an arpeggio by scanning through
+// when the playback hold parameter is on if(!arpHold) prevents the notemap from being turned off by noteOff signals and instead you toggle notes off by pressing
+// the same key see the NoteOn noteMap[note] = !noteMap[note]; is called if(arpHold) - ie toggles the notemap
+// that is the design elegance, perhaps, of the noteMap ... can update fast and later be used to make note lists
+
 void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfilled slots
   bool noteRemoved = LOW;
   uint8_t noteSlot = 0;
-  for(int i=0; i < 128; i++){
-    if (noteMap[i]){
+  for(int i=1; i < 128; i++){ //start from 1 (rather than 0) to look for Del because noteOrder[j] == i would always trigger because noteOrder is full of 0 for no note
+    if (noteMap[i]){  //note map is 0/LOW for any key that is off and 1/HIGH for any key that is on
       
-      if(noteSlot<PATTERN_LENGTH){
+      if(noteSlot<PATTERN_LENGTH){  //turn all the keys in note map that are on or held keys of keyboard into a list of notes in noteOrder array
         noteOrder[noteSlot] = i;
         noteSlot++;
       }
     } else { //if noteMap[i] is LOW check if it is in the pattern as a note
+      
       for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
-        if((noteOrder[j] == i) && !noteRemoved){ //only do this setting once 
+        if((noteOrder[j] == i) && !noteRemoved){ //only do this setting once so check if noteRemoved
           noteRemoved = HIGH;
           delNoteSeq(noteOrder[j]);
           Synth_NoteOff(0, noteOrder[j] ); //if you don't do this now you have to make some system to process noteoff later
@@ -229,12 +247,10 @@ void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfi
           if(j == (PATTERN_LENGTH-1))  //aka if this is the last note in pattern leave a 0
              noteOrder[j] = 0;
           else
-             noteOrder[j] = noteOrder[j+1]; // erase note by moving all notes back overwriting it
-             
+             noteOrder[j] = noteOrder[j+1]; // erase note by moving all notes back overwriting it         
         }
-        
       }
-      noteRemoved = LOW;
+      noteRemoved = LOW; //reset for next potential note that is now off 
     }
   }
   updatePatternOrder();

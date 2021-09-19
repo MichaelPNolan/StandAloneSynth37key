@@ -86,8 +86,8 @@
 #define SAMPLE_RATE 44100
 #define SAMPLE_SIZE_16BIT
 #else
-#define SAMPLE_RATE 48000  //even 32khz - kind of sucks and you get gliches and wrong sustained notes and fails
-#define SAMPLE_SIZE_32BIT //previous default 32bit is possible but go with 16bit
+#define SAMPLE_RATE 32000  //even 32khz - kind of sucks and you get gliches and wrong sustained notes and fails
+#define SAMPLE_SIZE_16BIT //previous default 32bit is possible but go with 16bit
 //#define SAMPLE_SIZE_8BIT  //default experimental
 #endif
 
