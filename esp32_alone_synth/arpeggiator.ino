@@ -16,7 +16,7 @@ static float bpm;
 static uint32_t minuteRATE;
 bool noteMap[128];
 static uint8_t noteOrder[PATTERN_LENGTH],noteSequential[PATTERN_LENGTH],patternOrder[PATTERN_LENGTH]; //see MAX_POLY_VOICE in easySynth
-static uint8_t nextNote, previousNoteNum; // nextNote ongoing index, whereas previousNoteNum is for making sure you turn off the last note played in case the list changes
+static uint8_t nextNote, previousNoteNum, walkResume; // nextNote ongoing index, whereas previousNoteNum is for making sure you turn off the last note played in case the list changes
 
 typedef enum arpVariationKind  { up,down,walk,threetwo,fourthree,randArp,entry,doubleTap};
 arpVariationKind arpPlayMethod;
@@ -38,6 +38,7 @@ inline void arpeggiatorSetup(void)
     arpNoteLength = NoteQuarter;
     nextNote = 0;
     previousNoteNum = 0;
+    walkResume = 0;
 }
 
 inline bool checkArpeggiator(void){ //this means we are in the arppeggiator bank and we are running bpm flashing
@@ -111,7 +112,7 @@ void arpAllOff(){  //also a general reset of arpeggiator
 
 inline void Arpeggiator_Process(void)
 {
-   Serial.print("* ");
+   //Serial.print("* ");
    if(keyBoardChanged == HIGH){ //always be ready to have the latest notes when there is keyboard activity
      keyBoardChanged = LOW;
      updateNoteOrder();  
@@ -121,13 +122,15 @@ inline void Arpeggiator_Process(void)
    
    if(previousNoteNum != 0)//(nextNote > 0)
       Synth_NoteOff(0, previousNoteNum);
-   if(noteOrder[nextNote] > 0){
+   if(patternOrder[nextNote] > 0){
      if(patternOrder[nextNote] >1)
        Synth_NoteOn(0, patternOrder[nextNote], getKeyboardVolume());   //old version used noteOrder = now that is used to generate patternOrder 
      previousNoteNum = patternOrder[nextNote]; //there was a bug where if you removed a note from the pattern or map it wouldn't be ended before next note - so force capture it
      nextNote++;
    } else {
      nextNote = 0; //restart at beginning of pattern if the current note is 0 indicating end of list (list is filled with 0 when unused)
+     if(arpPlayMethod == walk) //of we are at the end of patter in walk playMethod we should generate a new pattern - walkResume is the maintained to give continutity
+       updatePatternOrder();  
      if(patternOrder[nextNote] >1)
        Synth_NoteOn(0, patternOrder[nextNote], getKeyboardVolume());   //old version used noteOrder = now that is used to generate patternOrder 
      previousNoteNum = patternOrder[nextNote]; //there was a bug where if you removed a note from the pattern or map it wouldn't be ended before next note - so force capture it
@@ -253,12 +256,19 @@ void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfi
       noteRemoved = LOW; //reset for next potential note that is now off 
     }
   }
+  walkResume = 0;
   updatePatternOrder();
   
 }
+uint8_t dice4(){
+    return rand() % 4;
+}
 
-void updatePatternOrder(){
+void updatePatternOrder(){ //uses an algorithm to generate the pattern from noteOrder (a low to high list of notes in an array)
   int counter=0;
+  int notesLength = 0;
+  bool up = HIGH; //HIGH means up LOW means back for an up three steaps back two pattern
+  int delta = 3;
   switch(arpPlayMethod){
     case down:
       for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
@@ -268,13 +278,94 @@ void updatePatternOrder(){
         }
       } 
       break;
-    case entry:
-      for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
-        patternOrder[j] = noteSequential[j];
-        } 
+      //------------------------------------
+    case walk:            /*  Arturia keystep defn: With the Arp mode encoder set to Walk, the arpeggiator will play the held notes in a
+                          controlled random order. It's as if the arpeggiator 'threw a dice' at the end of each step:
+                          there's a 50% chance it will play the next step, a 25% chance it will play the current step
+                            again and a 25% chance it will play the previous step. */
+          while((noteOrder[notesLength] != 0) && (notesLength < PATTERN_LENGTH)){ //initialize notesLength to simplify further code
+            notesLength++; 
+          }
+          //Serial.print("Nlen: "+String(notesLength));
+          patternOrder[0] = noteOrder[walkResume]; //first note is root 
+          counter = walkResume; 
+      for(int j=1; j<PATTERN_LENGTH; j++){ //fill the rest of the pattern with the walk 
+        switch(dice4()){ //adjust counter using walk algorithm described above with range of notesLength
+          case 0 ... 1: //50% chance to add next step note
+            (counter+1 < notesLength) ? counter++ : counter = 0; //return to first note if we hit end of PATTERN_LENGTH   
+            //Serial.print("+ ");     
+          break;
+          case 2: //25% chance to add current step note
+            //Serial.print("/ ");   
+            break;
+          case 3: //25% chance to add previous note
+            //Serial.print("- "); 
+            (counter-1 >= 0) ? counter-- : counter = notesLength-1; //return to last note if we get below 0
+            break;
+        }
+        patternOrder[j] = noteOrder[counter];
+       
+      }
+      (walkResume+1 < notesLength) ? walkResume++ : walkResume = 0;
+      //Serial.println();                    
       break;
+    case threetwo:
+      delta = 3;
+      for(int j=0; j<PATTERN_LENGTH; j++){
+        if(noteOrder[counter] > 0)
+          patternOrder[j] = noteOrder[counter];
+        else
+          j=PATTERN_LENGTH;
+        if(delta > 0){
+          counter++;
+          delta--;
+        } else if (delta < 0){
+          delta++;
+          counter--;
+        } 
+        if (delta==0) //3 steps forward done started 3 went to 0
+          delta=-3;
+        if(delta==-1) //2 steps back done started -3 went to -1
+          delta=3;
+      }
+      break; 
+    case fourthree:
+      delta = 4;
+      for(int j=0; j<PATTERN_LENGTH; j++){
+        if(noteOrder[counter] > 0)
+          patternOrder[j] = noteOrder[counter];
+        else
+          j=PATTERN_LENGTH;
+        if(delta > 0){
+          counter++;
+          delta--;
+        } else if (delta < 0){
+          delta++;
+          counter--;
+        } 
+        if (delta==0) //3 steps forward done started 3 went to 0
+          delta=-4;
+        if(delta==-1) //2 steps back done started -3 went to -1
+          delta=4;
+      }
+      break;
+    case randArp:
+      while((noteOrder[notesLength] != 0) && (notesLength < PATTERN_LENGTH)){ //initialize notesLength to simplify further code
+            notesLength++; 
+      }
+      for(int j=0; j<PATTERN_LENGTH; j++){ 
+         patternOrder[j] = noteOrder[rand()%notesLength];
+      }
+      break;
+      //------------------------------------------------------
+    case entry: //the order notes were manually played in
+      for(int j=0; j<PATTERN_LENGTH; j++){ //blind copy noteSequential 
+        patternOrder[j] = noteSequential[j];
+      } 
+      break;
+      //----------------------------
     default: //this is up which is a direct copy of noteOrder
-      for(int j=0; j<PATTERN_LENGTH; j++){ // clear the note order array
+      for(int j=0; j<PATTERN_LENGTH; j++){ //blind copy noteOrder
         patternOrder[j] = noteOrder[j];
         } 
       break;
@@ -307,6 +398,7 @@ void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,en
     case 3:
       arpPlayMethod = walk;
       miniScreenString(1,1,"V.Walk",HIGH);
+      walkResume = 0;
       break;
     case 4:
       arpPlayMethod = threetwo;
