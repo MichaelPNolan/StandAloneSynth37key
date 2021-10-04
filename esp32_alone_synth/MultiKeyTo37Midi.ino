@@ -189,6 +189,10 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
           msg = "B4: Arpeggiator";
           setBank(4);
           break;
+      case 25:
+          msg = "B5: Permormance";
+          setBank(5);
+          break;
       case 56:
           msg = "RemoveTail Note";
           delTailSeq();

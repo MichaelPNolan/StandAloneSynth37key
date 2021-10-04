@@ -5,7 +5,7 @@
  */
 #define ONBOARD_LED 0
 
-String sixteen = "----------------";
+const char sixteen[17] = "----------------";
 
 uint8_t  stepNum;
 inline
@@ -39,27 +39,26 @@ void Blink_Process(void) //I'm using the blink as a tempo meter and I'll display
 }
 
 String pulseString(){
+  String cursorString,dashProgress,dashesAfter;
+  uint8_t arpNotes = readHeldNotes();
+  int cursorLen;
   stepNum++;
-  String generate1,generate2,generate3;
-  if(stepNum == 16){
+  if(arpNotes > 0)
+    cursorString = String(arpNotes);
+  else
+    cursorString = ">";
+  cursorLen = cursorString.length();
+  
+  if(stepNum == 16)
     stepNum=0;
-    generate1 = ">";
-    generate2 = String(sixteen);
-    generate2.remove(15);
-    generate1.concat(generate2);
-    return generate1;
-  } else {
-    generate1 = ">";
-    generate2 = String(sixteen);
-    generate2.remove(stepNum);
-    generate2.concat(generate1);
-    generate3 = String(sixteen);
-    generate3.remove(15 - stepNum);
-    generate2.concat(generate3);
+  dashProgress = String(sixteen);
+  dashProgress.remove(stepNum+cursorLen);
+  dashProgress.concat(cursorString);
+  dashesAfter = String(sixteen);
+  dashesAfter.remove(15 - stepNum);
+  dashProgress.concat(dashesAfter);
     
-    return generate2;
-  }
+  return dashProgress;
+}
    
   
-
-}

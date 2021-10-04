@@ -11,12 +11,12 @@
  */
 
 #define PATTERN_LENGTH 24
-bool useArpeggiator, arpHold, arpState, keyBoardChanged;
-static float bpm;
+bool            useArpeggiator, arpHold, arpState, keyBoardChanged;
+static float    bpm;
 static uint32_t minuteRATE;
-bool noteMap[128];
-static uint8_t noteOrder[PATTERN_LENGTH],noteSequential[PATTERN_LENGTH],patternOrder[PATTERN_LENGTH]; //see MAX_POLY_VOICE in easySynth
-static uint8_t nextNote, previousNoteNum, walkResume; // nextNote ongoing index, whereas previousNoteNum is for making sure you turn off the last note played in case the list changes
+bool            noteMap[128];
+static uint8_t  noteOrder[PATTERN_LENGTH],noteSequential[PATTERN_LENGTH],patternOrder[PATTERN_LENGTH],heldNotes; //see MAX_POLY_VOICE in easySynth
+static uint8_t  nextNote, previousNoteNum, walkResume; // nextNote ongoing index, whereas previousNoteNum is for making sure you turn off the last note played in case the list changes
 
 typedef enum arpVariationKind  { up,down,walk,threetwo,fourthree,randArp,entry,doubleTap};
 arpVariationKind arpPlayMethod;
@@ -28,6 +28,7 @@ noteLengthKind arpNoteLength;
 
 inline void arpeggiatorSetup(void)
 {
+    heldNotes = 0; //global for notes in the pattern 
     useArpeggiator = LOW;
     arpHold = LOW;
     bpm = 60.0;
@@ -200,14 +201,20 @@ void delNoteSeq(uint8_t note){ //very similar to the updateNoteOrder and called 
 }
 
 void delTailSeq(){
-  for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
+  if(heldNotes>0){
+    noteMap[noteSequential[heldNotes-1]] = 0;
+    noteSequential[heldNotes-1] = 0;
+    heldNotes = heldNotes - 1;
+    updateNoteOrder();
+  }
+  /* for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
     if(noteSequential[j] !=0){ //only do this setting once 
       
       noteMap[noteSequential[j]] = LOW;
       updateNoteOrder(); // call the noteOrder array builder which should now call a note remove instead of directly removing noteSequential[j] = 0;
       j=-1;
     }
-  }
+  }*/
 }
 /* 
  *  Design notes: patterns and note order 
@@ -263,10 +270,24 @@ void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfi
 uint8_t dice4(){
     return rand() % 4;
 }
+uint8_t getArpNotesLength(){  //how many non-zero notes are stored in array
+  int notesLength = 0;
+  while((noteOrder[notesLength] != 0) && (notesLength < PATTERN_LENGTH)){ //initialize notesLength to simplify further code
+            notesLength++; 
+  }
+  heldNotes = notesLength;
+  return notesLength;
+  
+}
+
+uint8_t readHeldNotes(){ //to pick up data from the blink to display on the gui
+  return heldNotes;
+}
+
 
 void updatePatternOrder(){ //uses an algorithm to generate the pattern from noteOrder (a low to high list of notes in an array)
   int counter=0;
-  int notesLength = 0;
+  uint8_t notesLength = getArpNotesLength();
   bool up = HIGH; //HIGH means up LOW means back for an up three steaps back two pattern
   int delta = 3;
   switch(arpPlayMethod){
@@ -283,10 +304,7 @@ void updatePatternOrder(){ //uses an algorithm to generate the pattern from note
                           controlled random order. It's as if the arpeggiator 'threw a dice' at the end of each step:
                           there's a 50% chance it will play the next step, a 25% chance it will play the current step
                             again and a 25% chance it will play the previous step. */
-          while((noteOrder[notesLength] != 0) && (notesLength < PATTERN_LENGTH)){ //initialize notesLength to simplify further code
-            notesLength++; 
-          }
-          //Serial.print("Nlen: "+String(notesLength));
+            //Serial.print("Nlen: "+String(notesLength));
           patternOrder[0] = noteOrder[walkResume]; //first note is root 
           counter = walkResume; 
       for(int j=1; j<PATTERN_LENGTH; j++){ //fill the rest of the pattern with the walk 
@@ -350,12 +368,10 @@ void updatePatternOrder(){ //uses an algorithm to generate the pattern from note
       }
       break;
     case randArp:
-      while((noteOrder[notesLength] != 0) && (notesLength < PATTERN_LENGTH)){ //initialize notesLength to simplify further code
-            notesLength++; 
-      }
-      for(int j=0; j<PATTERN_LENGTH; j++){ 
-         patternOrder[j] = noteOrder[rand()%notesLength];
-      }
+      if(notesLength > 0)
+        for(int j=0; j<PATTERN_LENGTH; j++){ 
+           patternOrder[j] = noteOrder[rand()%notesLength];
+        }
       break;
       //------------------------------------------------------
     case entry: //the order notes were manually played in
@@ -384,7 +400,7 @@ void setArpState(float value){
       
 }
 
-void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,entry,doubleTap};
+void setArpVariation(float value){ // enum{up,down,walk,threetwo,fourthree,randArp,entry,doubleTap};
   uint8_t division = 9 * value;
   switch(division){
     case 1:
@@ -402,11 +418,11 @@ void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,en
       break;
     case 4:
       arpPlayMethod = threetwo;
-      miniScreenString(1,1,"V.3+2-",HIGH);
+      miniScreenString(1,1,"V.3>2<",HIGH);
       break;
     case 5:
       arpPlayMethod = fourthree;
-      miniScreenString(1,1,"V.4+3-",HIGH);
+      miniScreenString(1,1,"V.4>3<",HIGH);
       break;
     case 6:
       arpPlayMethod = randArp;
@@ -414,14 +430,15 @@ void setArpVariation(float value){ // up,down,walk,threetwo,fourthree,randArp,en
       break;
     case 7:
       arpPlayMethod = entry;  //according to when they were entered
-      miniScreenString(1,1,"V.entryO",HIGH);
+      miniScreenString(1,1,"V.entry",HIGH);
       break;
     case 8:
       arpPlayMethod = doubleTap;
       miniScreenString(1,1,"V.2-tap",HIGH);
       break;
   }
-  updatePatternOrder();
+  if(heldNotes > 0)
+    updatePatternOrder();
 }
 
 boolean checkArpHold(){ //i've set it to check this in adc bank change - if arpHold is on its not going to toggle arp mode off or silence all notes

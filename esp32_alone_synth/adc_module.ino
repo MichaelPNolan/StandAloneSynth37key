@@ -45,12 +45,19 @@
 #define CONTROL_DELAY_SET_LENGTH 15
 #define CONTROL_DELAY_SET_LEVEL 16
 #define CONTROL_DELAY_SET_FEEDBACK 17
-#define CONTROL_SEMITONES 18
+#define CONTROL_SEMITONES 18  // keyboard note modifier
+// Arpeggiator parameters
 #define ARP_STATE 20
 #define ARP_VARIATION 21
 #define ARP_HOLD 22
 #define ARP_NOTE_LEN 23
 #define ARP_BPM 24
+// Performance Parameters
+#define PERF_SEMITONES 25   //master semitone tuning
+#define PERF_SWING 26       //adjustment for beat spacing to create swing effect (triple skip like)
+#define PERF_LFO_PARAM 27   //assign a parameter to sweep with LFO  (low freq oscillator is (usually between .1 and 250Hz) 
+#define PERF_LFO_PERIOD 28  //Frequency of LFO wave
+#define PERF_BEAT_SKIP 29   //put rests in some pattern into arpeggion - set of variations?
 
 
 #ifdef extraButtons
