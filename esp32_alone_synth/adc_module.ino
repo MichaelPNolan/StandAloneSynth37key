@@ -41,12 +41,18 @@
 #define CONTROL_PARAM_MAX_VOL  14
 //You can also call the simple_delay module 
 // eg: void Delay_SetLength(uint8_t unused, float value)
+
+/* FRom here down these parameters are created for this fork as I expand functionality above basics to enjoy 
+ *  the synth
+ */
+
+
 //  in z_config midi-controller parameters the function calls are encoded as Delay_SetLength, 2   -Delay_SetLevel, 3    -Delay_SetFeedback, 4
 #define CONTROL_DELAY_SET_LENGTH 15
 #define CONTROL_DELAY_SET_LEVEL 16
 #define CONTROL_DELAY_SET_FEEDBACK 17
 #define CONTROL_SEMITONES 18  // keyboard note modifier
-// Arpeggiator parameters
+// Arpeggiator parameters  
 #define ARP_STATE 20
 #define ARP_VARIATION 21
 #define ARP_HOLD 22
@@ -221,8 +227,8 @@ void  adcSimple(uint8_t potNum){
        if(adcSetpoint[potNum] != adcSingleAve[potNum]) //was there a change - if so then do stuff
         {
           adcSetpoint[potNum] = adcSingleAve[potNum];
-          Serial.println("---ADC read: " + String(adcSetpoint[potNum])+"--min: "+String(adcSingleMin[potNum])+"--max: "+String(adcSingleMax[potNum]));
-          Serial.print(" Param: "+String(potNum));
+         // Serial.println("---ADC read: " + String(adcSetpoint[potNum])+"--min: "+String(adcSingleMin[potNum])+"--max: "+String(adcSingleMax[potNum]));
+         // Serial.print(" Param: "+String(potNum));
           adcChannelValue[potNum] = adcSetpoint[potNum];
           //is the parameter setting for the bank within the range of parameter numbers handled by Synth_SetParam 0-13 #defined paramaters
           if(potBank[bankValue][potNum] < 14)

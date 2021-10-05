@@ -141,18 +141,22 @@ inline void Arpeggiator_Process(void)
      
 }
 
-void Arp_NoteOn(uint8_t note){
+inline void Arp_NoteOn(uint8_t note){
   Serial.print("On: "+String(note));
   if(arpHold)  //arpHold is a toggle note type of mode
     noteMap[note] = !noteMap[note];
   else
     noteMap[note] = HIGH;
   keyBoardChanged = HIGH;
-  addNoteSeq(note);
+  if(noteMap[note])
+    addNoteSeq(note);
+  else
+    delNoteSeq(note);
+    
 }
 
-void Arp_NoteOff(uint8_t note){
-  Serial.print("Off: "+String(note));
+inline void Arp_NoteOff(uint8_t note){
+  Serial.println("Off: "+String(note));
   if(!arpHold)
     noteMap[note] = LOW;
   keyBoardChanged = HIGH;
@@ -161,7 +165,7 @@ void Arp_NoteOff(uint8_t note){
 /*
  * N
  */
-void addNoteSeq(uint8_t note){
+inline void addNoteSeq(uint8_t note){
   Serial.println("Add: "+String(note));
   bool insertionDone = LOW;
   for(int j=0; j<PATTERN_LENGTH; j++){
@@ -183,20 +187,29 @@ void addNoteSeq(uint8_t note){
   #endif
 }
 
-void delNoteSeq(uint8_t note){ //very similar to the updateNoteOrder and called by that routine to manage the noteSequential array
+inline void delNoteSeq(uint8_t note){ //very similar to the updateNoteOrder and called by that routine to manage the noteSequential array
   bool noteRemoved = LOW;
   Serial.println("Del: "+String(note));
   for(int j=0; j<PATTERN_LENGTH; j++){
-    if(noteSequential[j] == note) //check notes until you get to the note that needs deletion then flag
+    //Serial.print(char(noteSequential[j]));
+    if((noteSequential[j] == note) && !noteRemoved){ //check notes until you get to the note that needs deletion then flag
        noteRemoved = HIGH;
+       
+    }
     if(noteRemoved) //remove and backfill array from this position to the end
-      {
-        if(j == (PATTERN_LENGTH-1))  //aka if this is the last note in pattern leave a 0
-           noteSequential[j] = 0;
-        else
-           noteSequential[j] = noteOrder[j+1]; // erase note by moving all notes back overwriting it
-      }
+    {
+      if(j > (PATTERN_LENGTH-2))  //aka if this is the last note in pattern leave a 0
+         noteSequential[j] = 0;
+      else 
+         noteSequential[j] = noteSequential[j+1]; // backfill
+      Serial.print(String(noteSequential[j]));   
+    }
+  
+  // careful not to put any code that should only execute once inside here a loop
   }
+  // trigger update
+  keyBoardChanged = HIGH;  // don't call updateNoteOrder because it calls delNoteSeq creating recursion crash
+  //Serial.println();
   //this is only a once through note deletion scan so we don't need to reset noteRemoved flag like we do in updateNoteOrder
 }
 
@@ -206,7 +219,15 @@ void delTailSeq(){
     noteSequential[heldNotes-1] = 0;
     heldNotes = heldNotes - 1;
     updateNoteOrder();
+  } else {
+  for(int j=PATTERN_LENGTH-1; j>-1; j--){
+    if(noteSequential[j] != 0){
+       noteMap[noteSequential[j]] = 0;
+       noteSequential[j] = 0;
+       j= -1;
+    }
   }
+}
   /* for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
     if(noteSequential[j] !=0){ //only do this setting once 
       
@@ -234,7 +255,7 @@ void delTailSeq(){
 // the same key see the NoteOn noteMap[note] = !noteMap[note]; is called if(arpHold) - ie toggles the notemap
 // that is the design elegance, perhaps, of the noteMap ... can update fast and later be used to make note lists
 
-void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfilled slots
+inline void updateNoteOrder(){ //build a list of notes to play which is 0s for any unfilled slots
   bool noteRemoved = LOW;
   uint8_t noteSlot = 0;
   for(int i=1; i < 128; i++){ //start from 1 (rather than 0) to look for Del because noteOrder[j] == i would always trigger because noteOrder is full of 0 for no note
@@ -280,8 +301,14 @@ uint8_t getArpNotesLength(){  //how many non-zero notes are stored in array
   
 }
 
-uint8_t readHeldNotes(){ //to pick up data from the blink to display on the gui
+inline uint8_t readHeldNotes(){ //to pick up data from the blink to display on the gui
   return heldNotes;
+}
+
+void cleanPatternOrder(){
+  for(int j=1; j<PATTERN_LENGTH; j++){
+    patternOrder[j] = 0;
+  }
 }
 
 
@@ -290,6 +317,7 @@ void updatePatternOrder(){ //uses an algorithm to generate the pattern from note
   uint8_t notesLength = getArpNotesLength();
   bool up = HIGH; //HIGH means up LOW means back for an up three steaps back two pattern
   int delta = 3;
+  cleanPatternOrder();
   switch(arpPlayMethod){
     case down:
       for(int j=PATTERN_LENGTH-1; j>-1; j--){ // clear the note order array
@@ -371,6 +399,16 @@ void updatePatternOrder(){ //uses an algorithm to generate the pattern from note
       if(notesLength > 0)
         for(int j=0; j<PATTERN_LENGTH; j++){ 
            patternOrder[j] = noteOrder[rand()%notesLength];
+        }
+      break;
+      //------------------------------------------------------
+    case doubleTap:
+      if(notesLength > 0)
+        for(int j=0; j<PATTERN_LENGTH; j++){ 
+           if(j==0)
+              patternOrder[j] = noteOrder[j];
+           else
+             patternOrder[j] = noteOrder[j/2];
         }
       break;
       //------------------------------------------------------

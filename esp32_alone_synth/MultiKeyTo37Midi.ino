@@ -194,16 +194,19 @@ void keyToCommand(uint8_t  keyCom){ //assume called after the modifier button wa
           setBank(5);
           break;
       case 56:
-          msg = "RemoveTail Note";
-          delTailSeq();
+          if(!checkArpHold()){
+            arpAllOff();  //i put this here because
+            msg = "All Arp Notes off";
+          } else {
+            delTailSeq();
+            msg = "RemoveTail Note";
+          }
           break;
   }
   noNote = 1;
   #ifdef DISPLAY_1306
-  if(!checkArpHold())  //you need to know if ArpHold is on because otherwise it will stay until you go back to the Arpeggiator bank
-    miniScreenString(7,1,"Keyboard Com:"+String(keyCom),HIGH);
-  else
-    miniScreenString(7,1,msg,HIGH);  //"ArpON+KbdCom:"+String(keyCom)
+
+  miniScreenString(7,1,msg,HIGH);  //"ArpON+KbdCom:"+String(keyCom)
   
   #else
   Serial.print("Command :/");//
