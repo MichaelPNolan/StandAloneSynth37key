@@ -1,4 +1,11 @@
-# StandAloneSynth37key
+# StandAloneSynth37key for v0.5
+
+Goals 1) There is something turning notes off after a certain time
+      2) Basic Synth has some of these library changes from later version of Marcel's master repository integrated. Bring this into line with that
+      3) A voltage monitor for the battery of the stand alone keyboard prototype
+      4) Band in the box like key shifts with number of bars eg Menu items like I: Set Key, 4 bars, II: +4th, 2 bars ... at first have 4 sections
+      5) A pitch adgustment part interface that plays as you adgust items of song
+      
 This is for someone who wants to wire up from a toy keyboard and pots, buttons to play the synth in a self contained unit. That is why I forked from Marcel Licence 
 who has developed a number of modular synth projects and shared.
 
