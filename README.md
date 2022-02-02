@@ -9,8 +9,6 @@ https://github.com/marcel-licence/esp32_basic_synth/discussions/60
 This project is moving along as a fork of basic synth. I've made my own knobs, banks of parameters physical interface in this self contained unit.
 I am milking this code for all I can to develop something I have a good deal of control.
 
-https://twitter.com/sangye/status/1444294998048927755/photo/1
-
 Ran into a lot of little electronics building issues with physically making it stable and wiring it. My projects are kind of semi-wired and semi-wires into temporary pin-connectors like you have on a test arduino where I soldered some connectors to the ESP32 dev module.
 Getting it to be stable and using the right wire and lengths so I can keep opening it up and improving it without breaking some connection takes experience. 
 
